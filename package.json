@@ -1,0 +1,22 @@
+{
+  "name": "passvault",
+  "version": "1.0.0",
+  "description": "PassVault 本地加密密码保险库 - 免安装桌面版",
+  "main": "main.js",
+  "private": true,
+  "author": "a756654285",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/a756654285/PassVault.git"
+  },
+  "homepage": "https://github.com/a756654285/PassVault",
+  "scripts": {
+    "start": "electron .",
+    "pack": "electron-packager . PassVault --platform win32 --arch x64 --out ./dist --overwrite --prune --ignore=\"node_modules\" --ignore=\"dist\" --ignore=\"数据库\""
+  },
+  "devDependencies": {
+    "electron": "^30.0.0",
+    "electron-packager": "^17.1.2"
+  }
+}

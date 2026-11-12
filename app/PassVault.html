@@ -1,0 +1,1153 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PASSVAULT // 密码保险库</title>
+<style>
+  :root{
+    --bg:#04080a; --panel:#0a1410; --panel2:#0c1a12; --line:#16331f;
+    --green:#00ff66; --green-dim:#1f9d55; --cyan:#36e0ff; --amber:#ffcf3a;
+    --red:#ff4d5e; --text:#bff7cf; --dim:#5f8a6a; --glow:0 0 8px rgba(0,255,102,.35);
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font-family:'Consolas','SF Mono','JetBrains Mono','Courier New',monospace;
+    font-size:14px; line-height:1.5;
+    background-image:
+      linear-gradient(rgba(0,255,102,.035) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,255,102,.035) 1px, transparent 1px);
+    background-size:32px 32px;
+    background-attachment:fixed;
+  }
+  ::selection{background:var(--green); color:#021;}
+  button{font-family:inherit; cursor:pointer;}
+  input,select,textarea{font-family:inherit; background:#06100b; color:var(--text);
+    border:1px solid var(--line); border-radius:4px; padding:8px 10px; outline:none;}
+  input:focus,select:focus,textarea:focus{border-color:var(--green); box-shadow:var(--glow);}
+  .btn{background:#06130c; color:var(--green); border:1px solid var(--green-dim);
+    border-radius:4px; padding:8px 14px; letter-spacing:.5px; transition:.15s;}
+  .btn:hover{background:var(--green); color:#021; box-shadow:var(--glow);}
+  .btn.ghost{color:var(--dim); border-color:var(--line);}
+  .btn.ghost:hover{color:var(--green); background:#081a10; box-shadow:none;}
+  .btn.danger{color:var(--red); border-color:#7a2330;}
+  .btn.danger:hover{background:var(--red); color:#fff; box-shadow:0 0 8px rgba(255,77,94,.4);}
+  .wrap{max-width:1080px; margin:0 auto; padding:18px;}
+
+  /* 顶部栏 */
+  .topbar{display:flex; align-items:center; justify-content:space-between;
+    border:1px solid var(--line); border-radius:6px; padding:12px 16px;
+    background:linear-gradient(180deg,#0b1a12,#06100b); box-shadow:var(--glow);}
+  .logo{font-size:18px; font-weight:bold; color:var(--green); letter-spacing:2px;
+    text-shadow:var(--glow);}
+  .logo .cur{animation:blink 1s steps(1) infinite;}
+  @keyframes blink{50%{opacity:0;}}
+  .topbar .meta{color:var(--dim); font-size:12px;}
+  .topbar .actions{display:flex; gap:8px;}
+
+  /* 解锁屏 */
+  .center{display:flex; align-items:center; justify-content:center; min-height:70vh;}
+  .card{width:420px; max-width:92vw; border:1px solid var(--line); border-radius:8px;
+    background:var(--panel); padding:26px; box-shadow:var(--glow);}
+  .card h2{margin:0 0 4px; color:var(--green); letter-spacing:1px;}
+  .card .sub{color:var(--dim); font-size:12px; margin-bottom:18px;}
+  .field{margin-bottom:14px;}
+  .field label{display:block; color:var(--dim); font-size:12px; margin-bottom:6px;}
+  .field input{width:100%;}
+  .warn{color:var(--amber); font-size:12px; border-left:2px solid var(--amber);
+    padding:6px 10px; background:rgba(255,207,58,.06); margin:10px 0;}
+
+  /* 工具栏 */
+  .toolbar{display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin:16px 0;}
+  .toolbar .search{flex:1; min-width:200px; position:relative;}
+  .toolbar .search input{width:100%; padding-left:30px;}
+  .toolbar .search:before{content:"🔍"; position:absolute; left:9px; top:8px; opacity:.6;}
+  .tag{color:var(--dim); font-size:12px;}
+  .dirty{color:var(--amber);}
+
+  /* 分组栏目：搜索框下方横排，最左为「全部分组」 */
+  .groupbar{display:flex; flex-wrap:wrap; gap:8px; width:100%; margin-top:-2px; padding-bottom:2px;}
+  .gtab{background:#06130c; color:var(--dim); border:1px solid var(--line);
+    border-radius:4px; padding:5px 12px; font-size:12px; white-space:nowrap;
+    letter-spacing:.3px; transition:.15s;}
+  .gtab:hover{color:var(--green); border-color:var(--green-dim); background:#081a10;}
+  .gtab.active{background:var(--green); color:#021; border-color:var(--green);
+    font-weight:bold; box-shadow:var(--glow);}
+  .gtab .cnt{margin-left:6px; font-size:11px; opacity:.65; font-weight:normal;}
+  /* 拖拽排序：全部分组固定最左，其余可拖 */
+  .gtab.can-drag{cursor:grab; user-select:none;}
+  .gtab.can-drag:active{cursor:grabbing;}
+  .gtab .handle{margin-right:6px; font-size:11px; opacity:.45;}
+  .gtab.dragging{opacity:.35; border-style:dashed;}
+  .gtab.drop-before{box-shadow:-3px 0 0 var(--cyan);}
+  .gtab.drop-after{box-shadow:3px 0 0 var(--cyan);}
+
+  /* 列表 */
+  .list{display:grid; gap:10px;}
+  .item{border:1px solid var(--line); border-radius:6px; background:var(--panel);
+    padding:12px 14px; display:flex; align-items:center; gap:12px;}
+  .item:hover{border-color:var(--green-dim); box-shadow:var(--glow);}
+  /* 条目拖拽排序：整行可拖，按钮区不触发；上下青色线标示插入位置 */
+  .item.can-drag{cursor:grab;}
+  .item.can-drag:active{cursor:grabbing;}
+  .item .rowhandle{cursor:grab; color:var(--dim); font-size:15px; opacity:.45;
+    user-select:none; padding:2px 3px; line-height:1;}
+  .item .rowhandle:hover{opacity:1; color:var(--cyan);}
+  .item.dragging{opacity:.35; border-style:dashed;}
+  .item.drop-before{box-shadow:0 -3px 0 var(--cyan);}
+  .item.drop-after{box-shadow:0 3px 0 var(--cyan);}
+  .item .main{flex:1; min-width:0;}
+  .item .title{color:var(--text); font-weight:bold;}
+  .item .uid{color:var(--dim); font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .item .grp{display:inline-block; font-size:11px; color:var(--cyan); border:1px solid #1d4f5c;
+    border-radius:10px; padding:1px 9px; margin-left:8px;}
+  .item .ops{display:flex; gap:6px; flex-wrap:wrap;}
+  .iconbtn{background:#06130c; color:var(--green); border:1px solid var(--green-dim);
+    border-radius:4px; padding:6px 9px; font-size:12px; cursor:pointer;}
+  .iconbtn:hover{background:var(--green); color:#021;}
+  .iconbtn.r{color:var(--red); border-color:#7a2330;}
+  .iconbtn.r:hover{background:var(--red); color:#fff;}
+  .empty{text-align:center; color:var(--dim); padding:50px 10px; border:1px dashed var(--line); border-radius:8px;}
+
+  /* 弹窗 */
+  .modal-bg{position:fixed; inset:0; background:rgba(2,6,4,.8); display:none;
+    align-items:flex-start; justify-content:center; padding:40px 12px; overflow:auto; z-index:50;}
+  .modal-bg.show{display:flex;}
+  .modal{width:560px; max-width:94vw; border:1px solid var(--green-dim); border-radius:8px;
+    background:var(--panel2); padding:22px; box-shadow:var(--glow);}
+  .modal h3{margin:0 0 14px; color:var(--green); letter-spacing:1px;}
+  .modal .row{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
+  .modal .row.full{grid-template-columns:1fr;}
+  .modal .opsbar{display:flex; justify-content:flex-end; gap:10px; margin-top:18px;}
+  textarea{width:100%; min-height:90px; resize:vertical; font-size:13px;}
+  .shareout{background:#06100b; border:1px solid var(--line); border-radius:4px;
+    padding:10px; color:var(--cyan); word-break:break-all; font-size:12px; max-height:120px; overflow:auto;}
+
+  .toast{position:fixed; left:50%; bottom:28px; transform:translateX(-50%);
+    background:#06130c; color:var(--green); border:1px solid var(--green-dim);
+    padding:10px 18px; border-radius:6px; box-shadow:var(--glow); opacity:0; transition:.25s; z-index:99;}
+  .toast.show{opacity:1;}
+  .foot{color:var(--dim); font-size:11px; text-align:center; margin-top:24px;}
+  .foot b{color:var(--green-dim);}
+  .meter{height:6px; border-radius:3px; background:#06130c; border:1px solid var(--line); overflow:hidden; margin-top:6px;}
+  .meter > i{display:block; height:100%; width:0; background:var(--green); transition:.2s;}
+</style>
+</head>
+<body>
+
+<!-- 解锁屏 -->
+<div id="unlock" class="wrap center">
+  <div class="card">
+    <h2>▓▒░ PASSVAULT ░▒▓</h2>
+    <div class="sub">// 本地加密密码保险库 · 离线 · 数据不出本机</div>
+    <div id="unlockForm">
+      <div class="field">
+        <label>主密码 MASTER KEY</label>
+        <input id="master" type="password" placeholder="输入主密码以解锁 / 创建保险库" autocomplete="off">
+      </div>
+      <div class="btn danger" id="unlockBtn" style="width:100%;text-align:center;">🔓 解锁 / 创建</div>
+      <div class="warn" id="unlockWarn" style="display:none;"></div>
+      <div class="opsbar" style="margin-top:14px; display:flex; gap:10px;">
+        <button class="btn ghost" id="openFileBtn" style="flex:1;" title="选择从另一台电脑导出的 .vault 完整备份，输入其主密码即可恢复全部记录">📂 一键导入数据库</button>
+      </div>
+      <input type="file" id="vaultFile" accept=".vault,.json" style="display:none;">
+    </div>
+    <div class="foot" style="margin-top:18px;">
+      首次使用：输入任意主密码即创建新保险库。<br>
+      从其他电脑迁移：点上方「一键导入数据库」选择备份文件，输入该文件的主密码即可。<br>
+      忘记主密码 = 数据无法恢复，请牢记。
+    </div>
+  </div>
+</div>
+
+<!-- 主界面 -->
+<div id="app" class="wrap" style="display:none;">
+  <div class="topbar">
+    <div>
+      <div class="logo">▓▒░ PASSVAULT</div>
+      <div class="meta" id="statLine">// 已解锁 · 0 条记录</div>
+    </div>
+    <div class="actions">
+      <button class="btn" id="addBtn">＋ 新增</button>
+      <button class="btn" id="saveBtn">💾 保存保险库</button>
+      <button class="btn ghost" id="migrateBtn" title="导出 / 一键导入完整数据库，用于换电脑迁移">💽 数据库迁移</button>
+      <button class="btn ghost" id="syncBtn" style="display:none">☁ 同步</button>
+      <button class="btn ghost" id="lockBtn">🔒 锁定</button>
+    </div>
+  </div>
+
+  <div class="toolbar">
+    <div class="search"><input id="search" placeholder="搜索 标题 / 账号 / 网址 / 备注 ..."></div>
+    <span class="tag" id="dirtyTag"></span>
+    <div class="groupbar" id="groupBar"></div>
+  </div>
+
+  <div class="list" id="list"></div>
+  <div class="empty" id="emptyState" style="display:none;">// 暂无记录，点击「＋ 新增」开始</div>
+
+  <!-- 云同步设置弹窗 -->
+  <div id="syncModal" class="modal-bg">
+    <div class="modal">
+      <h3>☁ 云同步</h3>
+      <div class="warn">数据在本机用主密码加密（AES-GCM）后才会上传，服务器只存「密文」，看不到你的明文。多人共用一台服务器时，每个人的数据互不可见。</div>
+      <div class="field"><label>同步服务器地址</label><input id="syncUrl" placeholder="http://你的服务器:8787"></div>
+      <div class="hint" id="syncUrlNote" style="display:none;color:var(--green-dim);font-size:12px;margin:-6px 0 6px;">服务器地址已内置，你只需填写用户名，用保险库主密码登录即可。</div>
+      <div class="row">
+        <div class="field"><label>用户名（云账号）</label><input id="syncUser" placeholder="如 alice"></div>
+        <div class="field"><label>登录密码</label><input value="（使用保险库主密码）" disabled></div>
+      </div>
+      <div class="field"><label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
+        <input type="checkbox" id="syncInsecure" style="width:auto;"> 忽略证书错误（仅内网自签 HTTPS 时使用，修改后需重启软件）
+      </label></div>
+      <div class="warn" id="syncStatus" style="display:none;"></div>
+      <div class="opsbar">
+        <button class="btn ghost" id="syncLogout">注销</button>
+        <button class="btn ghost" id="syncPull">从云端拉取</button>
+        <button class="btn ghost" id="syncClose">关闭</button>
+        <button class="btn" id="syncLogin">登录并启用同步</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="foot">
+    <b>PASSVAULT</b> · 主密码经 PBKDF2 + AES-GCM(256) 加密，密钥仅在内存中；每次改动自动保存到本机「数据库\autosave.vault」。<br>
+    换电脑迁移：点「💽 数据库迁移」导出完整备份，在另一台电脑一键导入即可。
+  </div>
+</div>
+
+<!-- 编辑弹窗 -->
+<div class="modal-bg" id="editModal">
+  <div class="modal">
+    <h3 id="editTitle">＋ 新增条目</h3>
+    <div class="row">
+      <div class="field"><label>标题 / 站点</label><input id="f_title" placeholder="例如：公司OA"></div>
+      <div class="field"><label>分组</label><input id="f_group" placeholder="例如：工作 / 个人"></div>
+    </div>
+    <div class="row">
+      <div class="field"><label>账号 / 用户名</label><input id="f_username" placeholder="登录账号"></div>
+      <div class="field">
+        <label>连接方式</label>
+        <select id="f_conn">
+          <option value="">🌐 网页 / 网址</option>
+          <option value="rdp">🖥 Windows 远程桌面（mstsc）</option>
+          <option value="ssh">⌨ SSH 终端（交换机 / 服务器）</option>
+          <option value="telnet">🔌 Telnet 终端（交换机常用）</option>
+        </select>
+      </div>
+    </div>
+    <div class="field" id="webField"><label>网址</label><input id="f_url" placeholder="https://..."></div>
+    <div class="row" id="remoteField" style="display:none;">
+      <div class="field"><label>主机地址（IP 或 IP:端口）</label><input id="f_host" placeholder="例如 192.0.2.10 或 192.0.2.10:3389"></div>
+      <div class="field" id="domainField"><label>域（可选，仅远程桌面）</label><input id="f_domain" placeholder="例如 CORP"></div>
+    </div>
+    <div class="tag" id="connHint" style="display:none;margin:-2px 0 10px;line-height:1.6;"></div>
+    <div class="field">
+      <label>密码</label>
+      <div style="display:flex; gap:8px;">
+        <input id="f_password" type="password" style="flex:1;" placeholder="密码" autocomplete="off">
+        <button class="btn ghost" id="eyeBtn" type="button" title="显示密码" aria-label="显示密码">👁</button>
+      </div>
+      <div class="meter"><i id="pwMeter"></i></div>
+      <div class="tag" id="pwStrength" style="display:block;margin-top:4px;"></div>
+    </div>
+    <div class="field"><label>备注</label><textarea id="f_note" placeholder="可选"></textarea></div>
+    <div class="autohint" id="autoHint" style="font-size:12px;color:var(--green);margin:6px 2px;">● 修改将自动保存，无需手动保存</div>
+    <div class="opsbar">
+      <button class="btn ghost" id="editCancel">取消</button>
+      <button class="btn" id="editSave">✓ 完成</button>
+    </div>
+  </div>
+</div>
+
+<!-- 分享弹窗 -->
+<div class="modal-bg" id="shareModal">
+  <div class="modal">
+    <h3>🔗 分享此条目</h3>
+    <div id="shareStep1">
+      <div class="field">
+        <label>请输入保险库主密码以确认分享（防止误分享）</label>
+        <div style="display:flex; gap:8px;">
+          <input id="sharePass" type="password" style="flex:1;" placeholder="你的保险库主密码" autocomplete="off">
+          <button class="btn ghost" id="sharePassOk" type="button">✓ 确认</button>
+        </div>
+        <div class="tag" id="sharePassHint" style="display:none;color:var(--red);margin-top:4px;"></div>
+      </div>
+    </div>
+    <div id="shareStep2" style="display:none;">
+      <div class="field">
+        <label>分享内容预览（下载的文件打开即可直接看到账号密码，无需导入软件）</label>
+        <div class="shareout" id="shareOut"></div>
+      </div>
+      <div class="opsbar">
+        <button class="btn ghost" id="shareCopy">📋 复制内容</button>
+        <button class="btn ghost" id="shareDownload">⬇ 下载 .txt</button>
+        <button class="btn ghost" id="shareDownloadDoc">⬇ 下载 Word</button>
+      </div>
+    </div>
+    <div class="opsbar">
+      <button class="btn" id="shareClose">完成</button>
+    </div>
+  </div>
+</div>
+
+<!-- 数据库迁移弹窗：导出全部 / 一键导入 -->
+<div class="modal-bg" id="migModal">
+  <div class="modal">
+    <h3>💽 数据库迁移</h3>
+    <div class="tag" style="display:block; line-height:1.8; margin-bottom:14px;">
+      导出全部记录（账号、密码、分组、连接方式、分组顺序）为一个加密 .vault 文件。<br>
+      拷到另一台电脑 → 解锁界面点「📂 一键导入数据库」，或在这里点「⬆ 一键导入」。<br>
+      ⚠ 文件用主密码加密，请妥善保管；主密码丢失无法恢复。
+    </div>
+    <div class="field">
+      <label>当前保险库</label>
+      <div class="tag" id="migStat" style="display:block; font-size:13px;"></div>
+    </div>
+    <div class="warn" id="migWarn" style="display:none;"></div>
+    <div class="opsbar">
+      <button class="btn ghost" id="migClose">关闭</button>
+      <button class="btn ghost" id="migImport">⬆ 一键导入</button>
+      <button class="btn" id="migExport">⬇ 导出全部数据</button>
+    </div>
+  </div>
+</div>
+<input type="file" id="backupFile" accept=".vault,.json" style="display:none;">
+
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+/* ============ 加密基础 ============ */
+const enc = new TextEncoder(), dec = new TextDecoder();
+const $ = id => document.getElementById(id);
+function randBytes(n){ const a=new Uint8Array(n); crypto.getRandomValues(a); return a; }
+function b64(buf){ const u=new Uint8Array(buf); let s=""; for(let i=0;i<u.length;i++) s+=String.fromCharCode(u[i]); return btoa(s); }
+function unb64(s){ const b=atob(s); const a=new Uint8Array(b.length); for(let i=0;i<b.length;i++) a[i]=b.charCodeAt(i); return a; }
+async function deriveKey(pw, salt, iter){
+  const base = await crypto.subtle.importKey("raw", enc.encode(pw), "PBKDF2", false, ["deriveKey"]);
+  return crypto.subtle.deriveKey({name:"PBKDF2", salt, iterations:iter, hash:"SHA-256"},
+    base, {name:"AES-GCM", length:256}, false, ["encrypt","decrypt"]);
+}
+async function encJSON(obj, key){
+  const iv = randBytes(12);
+  const ct = await crypto.subtle.encrypt({name:"AES-GCM", iv}, key, enc.encode(JSON.stringify(obj)));
+  return { iv:b64(iv), ct:b64(ct) };
+}
+async function decJSON(env, key){
+  const pt = await crypto.subtle.decrypt({name:"AES-GCM", iv:unb64(env.iv)}, key, unb64(env.ct));
+  return JSON.parse(dec.decode(pt));
+}
+
+/* ============ 状态 ============ */
+/* 云同步总开关：本机单机使用，已停用。
+   每次改动自动写入软件目录（无写权限时为用户数据目录）下的 数据库\autosave.vault；
+   换电脑用「💽 数据库迁移」导出 / 一键导入 .vault。
+   想恢复云同步：把下面的 false 改成 true，按钮、后台上传、设置弹窗会一起恢复。*/
+const SYNC_ENABLED = false;
+let masterKey = null;       // CryptoKey，仅在内存
+let masterPass = "";        // 主密码明文，仅在内存（解锁/锁定时置空）
+let kdfMeta = null;          // { salt, iter }
+let entries = [];            // 内存中的明文条目
+let activeGroup = "";       // 当前选中的分组栏目，"" = 全部分组
+let groupOrder = [];        // 分组栏目自定义顺序（本地持久化，不涉及加密数据）
+let dragGroup = "";         // 当前正在拖动的分组
+let suppressTabClick = false;
+let dragId = "";            // 当前正在拖动的条目 id
+let suppressItemClick = false;
+try{ groupOrder = JSON.parse(localStorage.getItem("passvault.groupOrder")||"[]"); }catch(e){ groupOrder=[]; }
+if(!Array.isArray(groupOrder)) groupOrder=[];
+function saveGroupOrder(){ try{ localStorage.setItem("passvault.groupOrder", JSON.stringify(groupOrder)); }catch(e){} }
+let dirty = false;
+let editingId = null;
+let sharingEntry = null;
+
+/* ============ 工具 ============ */
+function toast(msg){ const t=$("toast"); t.textContent=msg; t.classList.add("show"); clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove("show"),1600); }
+function download(blob, name){ const u=URL.createObjectURL(blob); const a=document.createElement("a"); a.href=u; a.download=name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(u),1000); }
+async function copy(text){ try{
+    if (window.__pv && window.__pv.copy){ window.__pv.copy(text); toast("已复制到剪贴板"); return; }
+    if (navigator.clipboard && navigator.clipboard.writeText){ await navigator.clipboard.writeText(text); toast("已复制到剪贴板"); return; }
+    throw new Error("no-clipboard");
+  }
+  catch(e){ const ta=document.createElement("textarea"); ta.value=text; ta.style.position="fixed"; ta.style.top="-9999px"; ta.style.opacity="0"; document.body.appendChild(ta); ta.select(); try{ document.execCommand("copy"); toast("已复制"); }catch(_){ toast("复制失败，请手动复制"); } ta.remove(); } }
+function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
+// 云同步登录认证材料：用主密码派生，与加密密钥(不同 salt/info)隔离；服务端只拿到它，无法反推主密码或解密
+async function deriveAuthHash(pw, saltB64, iter){
+  const enc = new TextEncoder();
+  const base = await crypto.subtle.importKey('raw', enc.encode(pw), 'PBKDF2', false, ['deriveBits']);
+  const bits = await crypto.subtle.deriveBits(
+    { name:'PBKDF2', salt: enc.encode(String(saltB64)+':sync-auth'), iterations: iter||250000, hash:'SHA-256' }, base, 256);
+  return [...new Uint8Array(bits)].map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+function mask(s){ if(!s) return ""; return s.length<=3 ? "•".repeat(s.length) : s.slice(0,2)+"•".repeat(Math.min(s.length-2,10)); }
+
+function genPw(len, o){
+  const sets={ up:"ABCDEFGHJKLMNPQRSTUVWXYZ", lo:"abcdefghijkmnpqrstuvwxyz", di:"23456789", sy:"!@#$%^&*_-+=?<>{}" };
+  let pool=""; for(const k in o) if(o[k]) pool+=sets[k];
+  if(!pool) pool=sets.lo;
+  const a=new Uint32Array(len); crypto.getRandomValues(a);
+  let out=""; for(let i=0;i<len;i++) out+=pool[a[i]%pool.length];
+  return out;
+}
+function pwStrength(pw){
+  if(!pw) return {s:0,t:"空"};
+  let c=0; if(/[a-z]/.test(pw))c++; if(/[A-Z]/.test(pw))c++; if(/\d/.test(pw))c++; if(/[^A-Za-z0-9]/.test(pw))c++;
+  const len=pw.length; let score=Math.min(100, len*8 + c*12);
+  let t="弱"; if(score>=70)t="强"; else if(score>=40)t="中";
+  return {s:score,t};
+}
+
+/* ============ 解锁 / 创建 ============ */
+async function unlockOrCreate(){
+  const pw = $("master").value;
+  if(pw.length < 4){ $("unlockWarn").style.display="block"; $("unlockWarn").textContent="主密码至少 4 位。"; return; }
+  $("unlockWarn").style.display="none";
+  const salt = randBytes(16);
+  kdfMeta = { salt:b64(salt), iter:250000 };
+  masterKey = await deriveKey(pw, salt, 250000);
+  masterPass = pw;
+  entries = []; dirty = false;
+  enterApp();
+  loadAutoSave(pw);
+  initSync();
+  toast("保险库已创建 / 解锁");
+}
+async function openVaultFile(file){
+  try{
+    const data = JSON.parse(await file.text());
+    if(data.app!=="PassVault" || !data.kdf) throw new Error("文件不是有效的 PASSVAULT 保险库");
+    const pw = prompt("请输入该保险库的主密码：");
+    if(pw===null) return;
+    const key = await deriveKey(pw, unb64(data.kdf.salt), data.kdf.iter);
+    const loaded = [];
+    for(const it of data.entries){
+      try{ const p = await decJSON({iv:it.iv, ct:it.ct}, key); p.id = it.id || uid(); loaded.push(p); }
+      catch(e){ throw new Error("主密码错误，或保险库文件已损坏"); }
+    }
+    masterKey = key; kdfMeta = data.kdf; entries = loaded; dirty=false; masterPass = pw;
+    await restoreGroupOrder(data, key, true);   // 用文件里保存的分组顺序
+    enterApp(); autoPersist(); toast("已打开保险库："+loaded.length+" 条记录");
+  }catch(e){ alert("打开失败："+e.message); }
+}
+function enterApp(){ $("unlock").style.display="none"; $("app").style.display="block"; render(); }
+
+/* ============ 保存 ============ */
+async function buildPayload(){
+  const payload = { app:"PassVault", ver:1, kdf:kdfMeta, entries:[] };
+  for(const e of entries){
+    const {iv,ct} = await encJSON({title:e.title,username:e.username,password:e.password,url:e.url,note:e.note,group:e.group,created:e.created,updated:Date.now(),conn:e.conn||"",host:e.host||"",domain:e.domain||""}, masterKey);
+    payload.entries.push({ id:e.id, iv, ct });
+  }
+  // 分组自定义顺序随库一起加密保存：不再只依赖本机 localStorage，
+  // 换电脑打开 .vault / 自动备份 / 云端拉取时顺序都能跟着走。
+  try{
+    const m = await encJSON({ groupOrder:groupOrder.slice() }, masterKey);
+    payload.meta = { iv:m.iv, ct:m.ct };
+  }catch(e){}
+  return payload;
+}
+
+/* 从备份恢复分组顺序。key 必须是「用该备份自身 salt 派生」的密钥，
+   不能复用当前会话的 masterKey。force=true 用于用户显式选文件 / 导入（以文件为准）。 */
+async function restoreGroupOrder(data, key, force){
+  if(!data || !data.meta || !key) return false;
+  if(!force && groupOrder.length) return false;   // 本机已排过顺序，优先保留本机设置
+  try{
+    const m = await decJSON(data.meta, key);
+    if(!m || !Array.isArray(m.groupOrder)) return false;
+    groupOrder = m.groupOrder.filter(g=>typeof g==="string" && g);
+    saveGroupOrder();
+    return true;
+  }catch(e){ return false; }
+}
+async function readBackupGroupOrder(data, pw){
+  if(!data || !data.meta || !pw) return null;
+  try{
+    const key = await deriveKey(pw, unb64(data.kdf.salt), data.kdf.iter||250000);
+    const m = await decJSON(data.meta, key);
+    return m && Array.isArray(m.groupOrder) ? m.groupOrder.filter(g=>typeof g==="string" && g) : null;
+  }catch(e){ return null; }
+}
+async function saveVault(){
+  if(!masterKey) return;
+  const payload = await buildPayload();
+  download(new Blob([JSON.stringify(payload,null,2)],{type:"application/json"}), "PassVault_保险库.vault");
+  dirty=false; updateStat(); toast("已保存加密保险库文件");
+}
+
+/* ============ 渲染 ============ */
+function updateStat(){
+  $("statLine").textContent = `// 已解锁 · ${entries.length} 条记录`;
+  $("dirtyTag").textContent = dirty ? "● 有未保存修改" : "";
+  $("dirtyTag").className = "tag " + (dirty ? "dirty" : "");
+}
+function refreshGroups(){
+  const set=new Set(), counts={};
+  entries.forEach(e=>{
+    if(!e.group) return;
+    set.add(e.group);
+    counts[e.group]=(counts[e.group]||0)+1;
+  });
+  // 分组被删空后自动回到「全部分组」，避免列表空白
+  if(activeGroup && set.size && !set.has(activeGroup)) activeGroup="";
+  // 按用户拖出的顺序排列：先已排序且仍存在的，新分组追加到末尾
+  // ⚠️ 解锁瞬间 entries 还是空数组（本地加密备份要 PBKDF2 异步解密后才填入），
+  //    此时 set 为空。若照常 filter 会把用户拖好的顺序清空，界面就变回默认顺序。
+  //    空数据阶段原样保留顺序，等数据恢复完成后再做「删空清理 / 新分组追加」。
+  const ordered = set.size ? groupOrder.filter(g=>set.has(g)) : groupOrder.slice();
+  [...set].forEach(g=>{ if(!ordered.includes(g)) ordered.push(g); });
+  const changed = ordered.join("\u0001") !== groupOrder.join("\u0001");
+  groupOrder = ordered;
+  if(set.size && changed) saveGroupOrder();
+  const tab=(g,label,cnt,drag)=>{
+    const tip = drag ? `筛选分组：${esc(label)}（${cnt} 条记录）· 按住拖动可调整顺序`
+                     : "显示全部记录（固定在最左，不可拖动）";
+    return `<button type="button" class="gtab${activeGroup===g?" active":""}${drag?" can-drag":""}" data-group="${esc(g)}"${drag?' draggable="true"':''} title="${tip}">${drag?'<span class="handle">⠿</span>':''}${esc(label)}<span class="cnt">${cnt}</span></button>`;
+  };
+  $("groupBar").innerHTML = tab("","全部分组",entries.length,false)
+    + (set.size ? ordered.map(g=>tab(g,g,counts[g],true)).join("") : "");
+}
+function render(){
+  const q=$("search").value.trim().toLowerCase();
+  const gf=activeGroup;
+  refreshGroups();
+  const list=$("list"); list.innerHTML="";
+  const filtered = entries.filter(e=>{
+    if(gf && e.group!==gf) return false;
+    if(!q) return true;
+    return [e.title,e.username,e.url,e.note,e.group,e.host].some(v=>(v||"").toLowerCase().includes(q));
+  });
+  $("emptyState").style.display = filtered.length? "none":"block";
+  for(const e of filtered){
+    const isRdp = e.conn==="rdp", isTerm = (e.conn==="ssh"||e.conn==="telnet"), isRemote = isRdp||isTerm;
+    const connLabel = isRdp ? "RDP" : (e.conn==="telnet" ? "TELNET" : (e.conn==="ssh" ? "SSH" : ""));
+    const div=document.createElement("div"); div.className="item can-drag";
+    div.setAttribute("data-id", e.id);
+    div.setAttribute("draggable", "true");
+    div.innerHTML = `
+      <span class="rowhandle" title="按住拖动可调整条目顺序">⠿</span>
+      <div class="main">
+        <div class="title">${esc(e.title||"(无标题)")}${e.group?`<span class="grp">${esc(e.group)}</span>`:""}${isRemote?`<span class="grp" style="color:var(--green);border-color:var(--green-dim);">${connLabel}</span>`:""}</div>
+        <div class="uid">👤 ${esc(e.username||"-")}${isRemote?` <span style="color:var(--cyan)">@ ${esc(e.host||"未填主机")}</span>`:""}</div>
+      </div>
+      <div class="ops">
+        <button class="iconbtn" data-act="copyu" data-id="${e.id}" title="点击复制账号">账号</button>
+        <button class="iconbtn" data-act="copyp" data-id="${e.id}" title="点击复制密码">密码</button>
+        <button class="iconbtn" data-act="edit" data-id="${e.id}" title="编辑此条目">✎</button>
+        ${isRdp?`<button class="iconbtn" data-act="connect" data-id="${e.id}" title="启动远程桌面连接（mstsc），自动填充账号密码">🖥 远程</button>`:""}
+        ${isTerm?`<button class="iconbtn" data-act="connect" data-id="${e.id}" title="拉起 SecureCRT / 终端直接连接设备，可手动输入密码操作">${e.conn==="telnet"?"🔌 远程":"⌨ 远程"}</button>`:""}
+        ${(!isRemote && e.url)?`<button class="iconbtn" data-act="open" data-id="${e.id}" title="打开条目网址">🌐</button>`:""}
+        <button class="iconbtn" data-act="share" data-id="${e.id}" title="分享此条目（生成可直接查看的账号密码文件）">🔗</button>
+        <button class="iconbtn r" data-act="del" data-id="${e.id}" title="删除此条目">🗑</button>
+      </div>`;
+    list.appendChild(div);
+  }
+  updateStat();
+}
+function esc(s){ return String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+
+/* ============ 编辑 ============ */
+function openEditor(id){
+  editingId = id || null;
+  const e = id ? entries.find(x=>x.id===id) : null;
+  $("editTitle").textContent = id ? "✎ 编辑条目" : "＋ 新增条目";
+  $("f_title").value = e?e.title:""; $("f_group").value=e?e.group:"";
+  $("f_username").value=e?e.username:""; $("f_url").value=e?e.url:"";
+  $("f_conn").value=e?(e.conn||""):""; $("f_host").value=e?(e.host||""):""; $("f_domain").value=e?(e.domain||""):"";
+  $("f_password").value=e?e.password:""; $("f_note").value=e?e.note:"";
+  // 默认密文显示，避免打开编辑框时直接暴露密码；点眼睛按钮才临时显示
+  $("f_password").type="password"; $("eyeBtn").textContent="👁"; $("eyeBtn").title="显示密码";
+  syncConnUI();
+  updateMeter();
+  $("editModal").classList.add("show");
+  $("f_title").focus();
+}
+/* 连接方式切换：网页→显示网址；RDP/SSH→显示主机地址（RDP 额外显示"域"） */
+function syncConnUI(){
+  const c = $("f_conn").value, isWeb = !c;
+  $("webField").style.display    = isWeb ? "" : "none";
+  $("remoteField").style.display = isWeb ? "none" : "";
+  $("domainField").style.display = (c==="rdp") ? "" : "none";
+  const h=$("connHint");
+  if(c==="rdp"){ h.style.display="block";
+    h.textContent="🖥 远程桌面：用上方「账号 + 密码」自动登录，端口默认 3389；保存后在列表点「🖥 远程」一键连接。";
+  } else if(c==="ssh"||c==="telnet"){ h.style.display="block";
+    h.textContent="🔌 网络设备终端：保存后在列表点「远程」会直接拉起 SecureCRT（若已安装）跳转到设备，否则打开系统终端；密码需在终端手动输入（协议限制，无法自动填充）。";
+  } else { h.style.display="none"; h.textContent=""; }
+}
+function updateMeter(){
+  const p=$("f_password").value; const {s,t}=pwStrength(p);
+  $("pwMeter").style.width=s+"%";
+  $("pwMeter").style.background = s>=70?"var(--green)": s>=40?"var(--amber)":"var(--red)";
+  $("pwStrength").textContent = "强度："+t+(p?` (${p.length} 位)`:"");
+}
+function saveEditor(){
+  const obj={ title:$("f_title").value.trim(), group:$("f_group").value.trim(),
+    username:$("f_username").value.trim(), url:$("f_url").value.trim(),
+    password:$("f_password").value, note:$("f_note").value,
+    conn:$("f_conn").value, host:$("f_host").value.trim(), domain:$("f_domain").value.trim() };
+  if(!obj.title && !obj.username){ toast("请填写标题或账号"); return; }
+  if(editingId){
+    const e=entries.find(x=>x.id===editingId); Object.assign(e,obj);
+  }else{
+    obj.id=uid(); obj.created=Date.now(); entries.unshift(obj); editingId=obj.id;
+  }
+  dirty=true; $("editModal").classList.remove("show"); render();
+  clearTimeout(_asTimer);   // 防止关闭弹窗后残留定时器再次触发、重复建草稿
+  autoPersist();            // 点"完成"立即落盘
+  toast("已保存");
+}
+
+/* ============ 自动保存 ============ */
+let _asTimer = null;
+function scheduleAutoSave(){ clearTimeout(_asTimer); _asTimer = setTimeout(autoSave, 600); }
+async function autoSave(){
+  if(!masterKey) return;
+  const title=$("f_title").value.trim(), username=$("f_username").value.trim();
+  const conn=$("f_conn").value, host=$("f_host").value.trim(), domain=$("f_domain").value.trim();
+  if(!editingId){
+    if(!title && !username) return;            // 新增且空白：暂不创建草稿
+    const obj={ id:uid(), created:Date.now(), title, group:$("f_group").value.trim(),
+                username, url:$("f_url").value.trim(), password:$("f_password").value, note:$("f_note").value, conn, host, domain };
+    entries.unshift(obj); editingId=obj.id;     // 首次输入即落为草稿
+  } else {
+    const e=entries.find(x=>x.id===editingId); if(!e) return;
+    Object.assign(e, { title, group:$("f_group").value.trim(), username,
+      url:$("f_url").value.trim(), password:$("f_password").value, note:$("f_note").value, conn, host, domain });
+  }
+  await autoPersist();
+  toast("已自动保存");
+}
+async function autoPersist(){
+  if(!masterKey) return;
+  const payload = await buildPayload();
+  if(window.__pv && window.__pv.writeAutoSave){
+    try{ await window.__pv.writeAutoSave(JSON.stringify(payload)); dirty=false; updateStat();
+      if(SYNC_ENABLED) cloudUpload(payload).catch(()=>{});   // 云同步已停用：本机保存后不再发任何网络请求
+      return; }
+    catch(e){ /* 落到下面 */ }
+  }
+  dirty=true; updateStat();   // 非 Electron 环境无本地缓存，仅内存改动
+}
+/* ============ 云同步 ============ */
+let syncState = { url:'', user:'', token:'', version:0, insecure:false };
+let defaultSyncServer = '';   // 软件内置的默认服务器地址（开发者配置，最终用户无需填写）
+
+function persistSync(){
+  if(window.__pv && window.__pv.writeSyncConfig){
+    window.__pv.writeSyncConfig({ url:syncState.url, user:syncState.user, token:syncState.token, version:syncState.version, insecure:syncState.insecure });
+  }
+}
+function updateSyncBadge(){
+  if(!SYNC_ENABLED) return;
+  const b=$("syncBtn"); if(!b) return;
+  if(syncState.token){ b.textContent="☁ 已同步"; b.style.color="var(--green)"; b.style.borderColor="var(--green-dim)"; }
+  else { b.textContent="☁ 同步"; b.style.color=""; b.style.borderColor=""; }
+}
+async function initSync(){
+  if(!SYNC_ENABLED) return;   // 停用时不读取同步配置、不自动填入服务器地址
+  try{ const c = await window.__pv.readSyncConfig(); if(c && c.token){ Object.assign(syncState, c); } }catch(e){}
+  // 读取软件内置默认服务器：开发者已配置时，首次自动填入，用户无需手填地址
+  try{ const d = await window.__pv.getDefaultSync(); if(d && d.server){ defaultSyncServer = d.server; if(!syncState.url) syncState.url = d.server; } }catch(e){}
+  updateSyncBadge();
+}
+function openSyncModal(){
+  if(!SYNC_ENABLED){ toast("云同步已停用，请用「💽 数据库迁移」导出 / 导入"); return; }
+  if(!masterKey){ toast("请先解锁保险库"); return; }
+  const urlInput = $("syncUrl");
+  urlInput.value = syncState.url || defaultSyncServer || "";
+  // 开发者已内置服务器地址时，锁定该输入框，最终用户无需也不能修改
+  if(defaultSyncServer){
+    urlInput.disabled = true; urlInput.title = "服务器地址由软件内置，无需修改";
+    $("syncUrlNote").style.display = "block";
+  } else {
+    urlInput.disabled = false; urlInput.title = "";
+    $("syncUrlNote").style.display = "none";
+  }
+  $("syncUser").value = syncState.user||"";
+  $("syncInsecure").checked = !!syncState.insecure;
+  const st=$("syncStatus");
+  if(syncState.token){ st.style.display="block"; st.textContent="已连接："+syncState.user+"（云端 v"+syncState.version+"）"; }
+  else { st.style.display="none"; }
+  $("syncModal").classList.add("show");
+}
+async function cloudUpload(payload){
+  if(!syncState.token || !syncState.url) return;
+  try{
+    const r = await fetch(syncState.url.replace(/\/+$/,"")+"/api/vault", {
+      method:"PUT",
+      headers:{ "Content-Type":"application/json", "Authorization":"Bearer "+syncState.token },
+      body: JSON.stringify({ payload: JSON.stringify(payload), version: syncState.version||0 })
+    });
+    if(r.status===409){
+      if(confirm("云端已有更新的备份，是否立即拉取并覆盖本地？")){ await syncPull(true); }
+      return;
+    }
+    if(!r.ok){ const e=await r.json().catch(()=>({})); toast("云同步失败："+(e.error||r.status)); return; }
+    const d = await r.json(); syncState.version = d.version; persistSync(); updateSyncBadge();
+  }catch(e){ toast("云同步失败："+(e.message||e)); }
+}
+async function syncPull(silent){
+  if(!syncState.token || !syncState.url){ if(!silent) toast("尚未连接云端"); return; }
+  try{
+    const r = await fetch(syncState.url.replace(/\/+$/,"")+"/api/vault", { headers:{ "Authorization":"Bearer "+syncState.token } });
+    if(!r.ok){ if(!silent) toast("拉取失败："+r.status); return; }
+    const d = await r.json();
+    if(!d.vault){ if(!silent) toast("云端暂无备份"); return; }
+    const data = JSON.parse(d.vault.payload);
+    if(data.app!=="PassVault" || !data.kdf){ if(!silent) toast("云端数据格式错误"); return; }
+    // 用主密码 + 云端备份自带的盐重新派生密钥解密（跨设备一致）
+    const key = await deriveKey(masterPass, unb64(data.kdf.salt), data.kdf.iter||250000);
+    const loaded=[];
+    for(const it of data.entries){
+      try{ const p=await decJSON({iv:it.iv, ct:it.ct}, key); p.id=it.id||uid(); loaded.push(p); }catch(_){}
+    }
+    await restoreGroupOrder(data, key, false);
+    entries = loaded; dirty=false; syncState.version = d.version; persistSync();
+    render(); updateStat(); updateSyncBadge();
+    if(!silent) toast("已从云端同步 "+loaded.length+" 条");
+  }catch(e){ if(!silent) toast("拉取失败："+(e.message||e)); }
+}
+async function syncLogin(){
+  const url = $("syncUrl").value.trim().replace(/\/+$/,"");
+  const user = $("syncUser").value.trim();
+  if(!url || !user){ toast("请填写服务器地址和用户名"); return; }
+  if(!masterPass){ toast("请先解锁保险库"); return; }
+  const authHash = await deriveAuthHash(masterPass, kdfMeta.salt, kdfMeta.iter||250000);
+  syncState.url = url; syncState.user = user;
+  let r = await fetch(url+"/api/login", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({username:user, authHash}) });
+  if(r.status===401){
+    if(confirm("账号「"+user+"」不存在，是否注册为新账号？")){
+      const rr = await fetch(url+"/api/register", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({username:user, authHash}) });
+      if(!rr.ok){ const e=await rr.json().catch(()=>({})); toast("注册失败："+(e.error||rr.status)); return; }
+      r = await fetch(url+"/api/login", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({username:user, authHash}) });
+    } else return;
+  }
+  if(!r.ok){ const e=await r.json().catch(()=>({})); toast("登录失败："+(e.error||r.status)); return; }
+  const d = await r.json();
+  syncState.token = d.token; syncState.version = d.version||0;
+  if(d.vault && confirm("云端已有备份（v"+d.version+"），是否立即从云端拉取覆盖本地？\n（取消则把当前本地数据上传到云端）")){
+    await syncPull(true);
+  } else {
+    const payload = await buildPayload(); await cloudUpload(payload);
+  }
+  persistSync(); updateSyncBadge(); $("syncModal").classList.remove("show"); toast("已连接云端："+user);
+}
+async function syncLogout(){
+  if(syncState.token){ try{ await fetch(syncState.url.replace(/\/+$/,"")+"/api/logout", { method:"POST", headers:{"Authorization":"Bearer "+syncState.token} }); }catch(e){} }
+  syncState.token=""; syncState.version=0; persistSync(); updateSyncBadge();
+  $("syncModal").classList.remove("show"); toast("已退出云端同步");
+}
+
+async function loadAutoSave(pw){
+  if(!window.__pv || !window.__pv.readAutoSave) return;
+  let bak=null; try{ bak=await window.__pv.readAutoSave(); }catch(e){ return; }
+  if(!bak) return;
+  try{
+    const data=JSON.parse(bak);
+    if(data.app!=="PassVault" || !data.kdf || !data.kdf.salt) return;
+    // 关键：备份加密时用的是"当时的盐"（存在备份自身 kdf 里）。
+    // 必须用输入的主密码 + 备份自带盐重新派生密钥，
+    // 不能用当前会话的 masterKey（其盐是本次解锁新生成的，必然对不上）。
+    const key = await deriveKey(pw, unb64(data.kdf.salt), data.kdf.iter||250000);
+    const loaded=[];
+    for(const it of (data.entries||[])){
+      try{ const p=await decJSON({iv:it.iv, ct:it.ct}, key); p.id=it.id||uid(); loaded.push(p); }catch(e){}
+    }
+    if(loaded.length){
+      await restoreGroupOrder(data, key, false);   // 本机没排过顺序时才用备份里的
+      entries=loaded; dirty=false; render();
+      toast("已恢复本地自动备份（"+loaded.length+" 条）");
+    } else if((data.entries||[]).length){
+      toast("检测到本地备份，但主密码不匹配，未能恢复");
+    }
+  }catch(e){}
+}
+
+/* ============ 分享（明文可读文件） ============ */
+function shareEntryText(){
+  const e=sharingEntry||{};
+  const L=[], V=[];
+  L.push("条目名称"); V.push(e.title||"(未填写)");
+  L.push("网址");     V.push(e.url||"(未填写)");
+  if(e.conn==="rdp"){
+    L.push("连接方式"); V.push("远程桌面 RDP（mstsc）");
+    L.push("主机地址"); V.push((e.host||"(未填写)")+(e.domain?("（域 "+e.domain+"）"):""));
+  } else if(e.conn==="ssh"){
+    L.push("连接方式"); V.push("SSH 远程终端");
+    L.push("主机地址"); V.push(e.host||"(未填写)");
+  } else if(e.conn==="telnet"){
+    L.push("连接方式"); V.push("Telnet 远程终端（交换机）");
+    L.push("主机地址"); V.push(e.host||"(未填写)");
+  }
+  L.push("账号");     V.push(e.username||"(未填写)");
+  L.push("密码");     V.push(e.password||"(未填写)");
+  L.push("备注");     V.push(e.note||"(无)");
+  let w=0; for(const x of L){ if(x.length>w) w=x.length; }
+  const pad=s=>s+"\u3000".repeat(Math.max(0,w-s.length));
+  const now=new Date();
+  const ts=now.getFullYear()+"-"+String(now.getMonth()+1).padStart(2,"0")+"-"+String(now.getDate()).padStart(2,"0")+" "+String(now.getHours()).padStart(2,"0")+":"+String(now.getMinutes()).padStart(2,"0");
+  return [
+    "PassVault 账号密码分享文件",
+    "================================",
+    "",
+    ...L.map((x,i)=>pad(x)+" : "+V[i]),
+    "",
+    "--------------------------------",
+    "导出时间 : "+ts,
+    "⚠ 提示：本文件内含明文密码，请妥善保管，勿转发给无关人员。",
+    ""
+  ].join("\r\n");
+}
+function buildShare(){ $("shareOut").textContent=shareEntryText(); }
+function setShareEnabled(on){
+  for(const id of ["shareCopy","shareDownload","shareDownloadDoc"]){
+    $(id).disabled=!on;
+    $(id).style.opacity = on? "" : "0.45";
+    $(id).style.pointerEvents = on? "" : "none";
+  }
+}
+function verifyShare(){
+  const hint=$("sharePassHint");
+  const ok=$("sharePass").value===masterPass && masterPass.length>0;
+  if(ok){
+    hint.style.display="none"; hint.textContent="";
+    $("shareStep1").style.display="none";     // 第一步（密码页）隐藏
+    $("shareStep2").style.display="block";    // 跳转到第二步（信息页）
+    setShareEnabled(true); buildShare();
+  } else {
+    hint.style.display="block"; hint.textContent="主密码错误，请重新输入。";
+  }
+}
+/* ============ 数据库迁移：导出全部 / 一键导入 ============ */
+function openMigrateModal(){
+  const groups = new Set(entries.map(e=>e.group).filter(Boolean)).size;
+  $("migStat").textContent = `// ${entries.length} 条记录 · ${groups} 个分组`;
+  $("migWarn").style.display="none"; $("migWarn").textContent="";
+  $("migModal").classList.add("show");
+}
+function migWarn(msg){ const w=$("migWarn"); w.style.display="block"; w.textContent=msg; }
+function backupStamp(){
+  const d=new Date(), p=n=>String(n).padStart(2,"0");
+  return `${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}`;
+}
+async function exportDatabase(){
+  if(!masterKey){ migWarn("请先解锁保险库"); return; }
+  try{
+    const payload = await buildPayload();   // 已含全部条目 + kdf，格式与 .vault 完全兼容
+    payload.backup = {
+      format:"PassVault-FullBackup", ver:1,
+      exportedAt:new Date().toISOString(), count:entries.length
+      // 分组顺序已随 payload.meta 加密保存，不再明文写进导出文件
+    };
+    download(new Blob([JSON.stringify(payload,null,2)],{type:"application/json"}),
+      `PassVault_完整备份_${backupStamp()}.vault`);
+    dirty=false; updateStat();
+    $("migModal").classList.remove("show");
+    toast(`已导出 ${entries.length} 条记录（含分组顺序）`);
+  }catch(e){ migWarn("导出失败："+e.message); }
+}
+async function decryptBackup(data, pw){
+  // 必须用备份自带的 salt 派生密钥：不同电脑新建库时 salt 不同，不能复用当前 masterKey
+  const key = await deriveKey(pw, unb64(data.kdf.salt), data.kdf.iter||250000);
+  const loaded=[];
+  for(const it of data.entries){
+    const p = await decJSON({iv:it.iv, ct:it.ct}, key);
+    p.id = it.id || uid();
+    loaded.push(p);
+  }
+  return loaded;
+}
+async function importDatabase(file){
+  let data;
+  try{ data=JSON.parse(await file.text()); }catch(e){ return migWarn("导入失败：文件不是有效的 JSON"); }
+  if(data.app!=="PassVault" || !data.kdf || !data.kdf.salt || !Array.isArray(data.entries))
+    return migWarn("导入失败：不是有效的 PassVault 数据库备份（.vault）");
+  let loaded=null, usedPw=null;
+  // 两台电脑用同一主密码时无需再次输入，真正一键
+  if(masterPass){ try{ loaded=await decryptBackup(data, masterPass); usedPw=masterPass; }catch(e){} }
+  if(!loaded){
+    const pw=prompt("请输入该备份文件的主密码：");
+    if(pw===null) return;
+    try{ loaded=await decryptBackup(data, pw); usedPw=pw; }
+    catch(e){ return migWarn("导入失败：主密码错误，或备份文件已损坏"); }
+  }
+  let mode="replace";
+  if(entries.length){
+    const ok=confirm(`当前保险库有 ${entries.length} 条，备份文件有 ${loaded.length} 条。\n\n【确定】用备份完全覆盖当前数据\n【取消】合并保留双方（相同 ID 以备份为准）`);
+    mode = ok ? "replace" : "merge";
+  }
+  if(mode==="replace") entries = loaded;
+  else {
+    const map=new Map(entries.map(e=>[e.id,e]));
+    loaded.forEach(e=>map.set(e.id,e));
+    entries=[...map.values()];
+  }
+  // 分组顺序：优先读加密 meta；兼容旧版导出文件里明文的 backup.groupOrder
+  let bo = await readBackupGroupOrder(data, usedPw);
+  if(!bo && data.backup && Array.isArray(data.backup.groupOrder)) bo = data.backup.groupOrder;
+  if(bo){
+    if(mode==="replace") groupOrder = bo.filter(g=>typeof g==="string" && g);
+    else bo.forEach(g=>{ if(typeof g==="string" && g && !groupOrder.includes(g)) groupOrder.push(g); });
+    saveGroupOrder();
+  }
+  activeGroup="";
+  render(); dirty=true; updateStat();
+  await autoPersist();   // 用「当前」主密码重新加密落盘，并写入本机自动备份
+  $("migModal").classList.remove("show");
+  toast(`已导入 ${loaded.length} 条记录（${mode==="replace"?"覆盖":"合并"}）`);
+}
+
+/* ============ 远程连接（RDP / SSH） ============ */
+async function doRdp(en){
+  const host=(en.host||"").trim();
+  if(!host){ toast("该条目未填主机地址，请先编辑"); return; }
+  toast("正在启动远程桌面…");
+  let r=null;
+  try{ if(window.__pv && window.__pv.launchRdp) r = await window.__pv.launchRdp({ host, username:en.username||"", password:en.password||"", domain:en.domain||"" }); }
+  catch(e){ r={ok:false,error:String(e.message||e)}; }
+  if(!r){ copy(host); toast("当前环境不支持自动连接，已复制主机地址"); return; }
+  if(!r.ok){ toast("启动失败："+(r.error||"未知错误")); return; }
+  toast(r.stashed ? "远程桌面已启动，账号密码已自动填充" : "远程桌面已启动，请在登录窗输入密码");
+}
+async function doRemoteTerm(en){
+  const host=(en.host||"").trim();
+  if(!host){ toast("该条目未填主机地址，请先编辑"); return; }
+  const proto=(en.conn==="telnet")?"telnet":"ssh";
+  toast(proto==="telnet"?"正在连接交换机（Telnet）…":"正在连接设备（SSH）…");
+  let r=null;
+  try{ if(window.__pv && window.__pv.launchTerm) r = await window.__pv.launchTerm({ proto, host, username:en.username||"" }); }catch(e){ r={ok:false,error:String(e.message||e)}; }
+  if(!r){ toast("当前环境不支持自动连接，已复制主机地址"); copy(host); return; }
+  if(!r.ok){ toast("启动失败："+(r.error||"未知错误")); return; }
+  if(r.method==="securecrt") toast("已用 SecureCRT 跳转到设备，请在终端输入密码");
+  else if(r.method==="wt") toast("已打开 Windows Terminal，请输入密码登录");
+  else toast("已打开终端，请输入密码登录");
+}
+// 判断一个"网址"是否其实像远程地址：裸 IPv4，或带非 80/443 显式端口的主机
+function looksLikeRemote(u){
+  if(/^https?:\/\//i.test(u) || /^\\\\.+/.test(u)) return false;
+  if(/^\d{1,3}(\.\d{1,3}){3}(:\d{1,5})?$/.test(u)) return true;              // 裸 IPv4(可带端口)
+  if(/^[A-Za-z0-9._\-]+:(?!80$|443$)\d{1,5}$/.test(u)) return true;           // 主机:非网页端口
+  return false;
+}
+
+/* ============ 事件绑定 ============ */
+$("unlockBtn").addEventListener("click", unlockOrCreate);
+$("master").addEventListener("keydown", e=>{ if(e.key==="Enter") unlockOrCreate(); });
+$("openFileBtn").addEventListener("click", ()=>$("vaultFile").click());
+$("vaultFile").addEventListener("change", e=>{ if(e.target.files[0]) openVaultFile(e.target.files[0]); });
+$("addBtn").addEventListener("click", ()=>openEditor(null));
+$("saveBtn").addEventListener("click", saveVault);
+$("lockBtn").addEventListener("click", ()=>{ if(dirty && !confirm("有未保存修改，锁定后将丢失，确定？")) return; masterKey=null; masterPass=""; entries=[]; activeGroup=""; dirty=false; $("app").style.display="none"; $("unlock").style.display="flex"; $("master").value=""; });
+$("migrateBtn").addEventListener("click", openMigrateModal);
+$("migClose").addEventListener("click", ()=>$("migModal").classList.remove("show"));
+$("migExport").addEventListener("click", exportDatabase);
+$("migImport").addEventListener("click", ()=>$("backupFile").click());
+$("backupFile").addEventListener("change", async e=>{
+  const f=e.target.files[0]; e.target.value="";   // 允许重复选择同一个文件
+  if(f) await importDatabase(f);
+});
+$("search").addEventListener("input", render);
+const groupBarEl = $("groupBar");
+groupBarEl.addEventListener("click", e=>{
+  if(suppressTabClick) return;
+  const b=e.target.closest("[data-group]"); if(!b) return;
+  const g=b.getAttribute("data-group");
+  if(g===activeGroup) return;
+  activeGroup=g; render();
+});
+
+/* ===== 分组栏目拖拽排序（全部分组固定最左，不参与） ===== */
+function clearDropMarks(all){
+  [...groupBarEl.querySelectorAll(".gtab")].forEach(x=>{
+    x.classList.remove("drop-before","drop-after");
+    if(all) x.classList.remove("dragging");
+    delete x.dataset.dropPos;
+  });
+}
+groupBarEl.addEventListener("dragstart", e=>{
+  const b=e.target.closest(".gtab.can-drag"); if(!b) return;
+  dragGroup=b.getAttribute("data-group");
+  if(!dragGroup) return;
+  clearDropMarks(true);
+  b.classList.add("dragging");
+  e.dataTransfer.effectAllowed="move";
+  try{ e.dataTransfer.setData("text/plain", dragGroup); }catch(_){}
+});
+groupBarEl.addEventListener("dragover", e=>{
+  if(!dragGroup) return;
+  const b=e.target.closest(".gtab[data-group]");
+  const target=b?b.getAttribute("data-group"):"";
+  if(b && !target){ clearDropMarks(); return; }   // 悬在「全部分组」上：不可放置
+  e.preventDefault();
+  e.dataTransfer.dropEffect="move";
+  clearDropMarks();
+  if(target===dragGroup) return;                  // 拖到自己身上：不显示插入线
+  const r=b.getBoundingClientRect();
+  const after=(e.clientX-r.left)>r.width/2;
+  b.classList.add(after?"drop-after":"drop-before");
+  b.dataset.dropPos=after?"after":"before";
+});
+groupBarEl.addEventListener("drop", e=>{
+  if(!dragGroup) return;
+  const b=e.target.closest(".gtab[data-group]");
+  const target=b?b.getAttribute("data-group"):"";
+  // 「全部分组」或拖回自己：不改动顺序
+  if(b && (!target || target===dragGroup)){ clearDropMarks(true); dragGroup=""; return; }
+  e.preventDefault();
+  const arr=groupOrder.filter(g=>g!==dragGroup);
+  if(target){
+    let i=arr.indexOf(target); if(i<0) i=arr.length;
+    arr.splice(b.dataset.dropPos==="after"?i+1:i, 0, dragGroup);
+  }else{
+    arr.push(dragGroup);                          // 拖到分组栏空白处 = 排到末尾
+  }
+  groupOrder=arr;
+  saveGroupOrder();
+  dragGroup=""; suppressTabClick=true;
+  clearDropMarks(true); render();
+  setTimeout(()=>{ suppressTabClick=false; }, 100);
+});
+groupBarEl.addEventListener("dragend", ()=>{ dragGroup=""; clearDropMarks(true); });
+
+/* ===== 条目拖拽排序（顺序随 entries 数组写入本机备份 / .vault / 云端） ===== */
+const listEl = $("list");
+function clearItemDropMarks(all){
+  [...listEl.querySelectorAll(".item")].forEach(x=>{
+    x.classList.remove("drop-before","drop-after");
+    if(all) x.classList.remove("dragging");
+    delete x.dataset.dropPos;
+  });
+}
+// 在按钮上按下时关闭该行 draggable，避免「点按钮」被当成「拖条目」
+listEl.addEventListener("mousedown", e=>{
+  const it=e.target.closest(".item[data-id]"); if(!it) return;
+  it.draggable = !e.target.closest("button, a, input, textarea");
+});
+listEl.addEventListener("dragstart", e=>{
+  const it=e.target.closest(".item[data-id]");
+  if(!it || !it.draggable){ e.preventDefault(); return; }
+  dragId = it.getAttribute("data-id");
+  clearItemDropMarks(true);
+  it.classList.add("dragging");
+  e.dataTransfer.effectAllowed="move";
+  try{ e.dataTransfer.setData("text/plain", dragId); }catch(_){}
+});
+listEl.addEventListener("dragover", e=>{
+  if(!dragId) return;
+  e.preventDefault();                       // 空白处也允许放置（= 排到末尾）
+  e.dataTransfer.dropEffect="move";
+  clearItemDropMarks();
+  const it=e.target.closest(".item[data-id]");
+  if(!it) return;
+  const target=it.getAttribute("data-id");
+  if(target===dragId) return;               // 拖到自己身上：不显示插入线
+  const r=it.getBoundingClientRect();
+  const after=(e.clientY-r.top)>r.height/2;
+  it.classList.add(after?"drop-after":"drop-before");
+  it.dataset.dropPos=after?"after":"before";
+});
+listEl.addEventListener("drop", async e=>{
+  if(!dragId) return;
+  e.preventDefault();
+  const it=e.target.closest(".item[data-id]");
+  const target=it?it.getAttribute("data-id"):"";
+  const pos=it?it.dataset.dropPos:"after";
+  const src=dragId; dragId="";
+  clearItemDropMarks(true);
+  if(target===src) return;                  // 拖回自己：顺序不变
+  const from=entries.findIndex(x=>x.id===src);
+  if(from<0) return;
+  const [moved]=entries.splice(from,1);
+  let to=entries.length;                    // 拖到列表空白 = 末尾
+  if(target){
+    const idx=entries.findIndex(x=>x.id===target);
+    if(idx>=0) to = pos==="after" ? idx+1 : idx;
+  }
+  entries.splice(to, 0, moved);
+  suppressItemClick=true;
+  render();
+  setTimeout(()=>{ suppressItemClick=false; }, 120);  // 固定抑制窗口，不受落盘耗时影响
+  autoPersist().catch(()=>{});              // 顺序写进本机自动备份 / .vault / 云端，不阻塞界面
+  toast("顺序已保存");
+});
+listEl.addEventListener("dragend", ()=>{ dragId=""; clearItemDropMarks(true); });
+
+$("list").addEventListener("click", async e=>{
+  if(suppressItemClick) return;             // 拖拽刚结束，抑制误触按钮
+  const btn=e.target.closest("[data-act]"); if(!btn) return;
+  const id=btn.getAttribute("data-id"); const act=btn.getAttribute("data-act");
+  const en=entries.find(x=>x.id===id); if(!en) return;
+  if(act==="copyu") copy(en.username);
+  else if(act==="copyp") copy(en.password);
+  else if(act==="edit") openEditor(id);
+  else   if(act==="connect"){
+    if(en.conn==="rdp") doRdp(en);
+    else if(en.conn==="ssh"||en.conn==="telnet") doRemoteTerm(en);
+    else toast("该条目未设置远程连接方式");
+  }
+  else if(act==="open"){
+    let u=(en.url||"").trim(); if(!u) return;
+    const isUNC=/^\\\\/.test(u);   // \\ 开头 = 共享文件夹路径，交给资源管理器打开
+    // 自动识别：没设连接方式但地址像远程目标(裸IP / 主机:非网页端口)时，询问是否走远程桌面
+    if(!en.conn && !isUNC && looksLikeRemote(u) && window.__pv && window.__pv.launchRdp){
+      if(confirm("「"+u+"」看起来是远程地址（IP / 主机:端口）。\n\n是否用「远程桌面(mstsc)」连接？\n（取消则按普通网页打开）")){
+        doRdp({host:u, username:en.username, password:en.password, domain:""});
+        return;
+      }
+    }
+    if(!isUNC && !/^https?:\/\//i.test(u)) u="https://"+u;   // 用户填 pan.baidu.com 这类无协议网址时自动补 https://
+    if(window.__pv && window.__pv.openExternal){
+      window.__pv.openExternal(u).then(ok=>{ if(!ok) toast(isUNC?"共享路径打开失败，请检查路径或网络是否可达":"网址无效或打开失败"); });
+    } else {
+      window.open(u, "_blank");   // 纯 html 版兜底
+    }
+  }
+  else if(act==="share"){ sharingEntry=en; $("sharePass").value=""; $("sharePassHint").style.display="none"; $("sharePassHint").textContent=""; $("shareStep1").style.display="block"; $("shareStep2").style.display="none"; setShareEnabled(false); $("shareOut").textContent=""; $("shareModal").classList.add("show"); $("sharePass").focus(); }
+  else if(act==="del"){ if(confirm("删除该条目？")){ entries=entries.filter(x=>x.id!==id); dirty=true; render(); autoPersist(); toast("已删除"); } }
+});
+
+$("editCancel").addEventListener("click", ()=>$("editModal").classList.remove("show"));
+$("editSave").addEventListener("click", saveEditor);
+$("eyeBtn").addEventListener("click", ()=>{
+  const i=$("f_password"), b=$("eyeBtn"), show=(i.type==="password");
+  i.type = show ? "text" : "password";
+  b.textContent = show ? "🙈" : "👁";
+  b.title = show ? "隐藏密码" : "显示密码";
+  i.focus();
+});
+$("f_password").addEventListener("input", ()=>{ updateMeter(); scheduleAutoSave(); });
+["f_title","f_group","f_username","f_url","f_note","f_host","f_domain"].forEach(id=> $(id).addEventListener("input", scheduleAutoSave));
+$("f_conn").addEventListener("change", ()=>{
+  // 从"网页"切到远程时，若主机为空且网址像主机，则自动带入，省一次输入
+  const c=$("f_conn").value;
+  if(c && !$("f_host").value.trim()){
+    const u=$("f_url").value.trim().replace(/^https?:\/\//i,"").replace(/\/.*$/,"");
+    if(u) $("f_host").value=u;
+  }
+  syncConnUI(); scheduleAutoSave();
+});
+
+$("sharePass").addEventListener("keydown", e=>{ if(e.key==="Enter") verifyShare(); });
+$("sharePassOk").addEventListener("click", verifyShare);
+$("shareCopy").addEventListener("click", ()=>{ if($("shareCopy").disabled) return; copy(shareEntryText()); });
+function shareFileText(){ return shareEntryText(); }
+$("shareDownload").addEventListener("click", ()=>{ if($("shareDownload").disabled) return; download(new Blob(["\ufeff"+shareFileText()],{type:"text/plain;charset=utf-8"}), "PassVault_分享_"+((sharingEntry&&(sharingEntry.title||sharingEntry.username))||"条目")+".txt"); });
+$("shareDownloadDoc").addEventListener("click", ()=>{ if($("shareDownloadDoc").disabled) return; const t=shareFileText(); const esc=t.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); const html='<html><head><meta charset="utf-8"><title>PassVault 分享</title></head><body style="font-family:SimSun;font-size:12pt"><pre style="font-family:SimSun;font-size:12pt;white-space:pre-wrap">'+esc+'</pre></body></html>'; download(new Blob(["\ufeff"+html],{type:"application/msword"}), "PassVault_分享_"+((sharingEntry&&(sharingEntry.title||sharingEntry.username))||"条目")+".doc"); });
+$("shareClose").addEventListener("click", ()=>{ $("shareModal").classList.remove("show"); $("shareStep1").style.display="block"; $("shareStep2").style.display="none"; $("sharePass").value=""; $("sharePassHint").style.display="none"; $("sharePassHint").textContent=""; setShareEnabled(false); });
+setShareEnabled(false);   // 初始禁用分享按钮，需先输入主密码确认
+
+if(SYNC_ENABLED){ const _sb=$("syncBtn"); if(_sb){ _sb.style.display=""; _sb.addEventListener("click", openSyncModal); } }
+$("syncLogin").addEventListener("click", syncLogin);
+$("syncPull").addEventListener("click", ()=>syncPull(false));
+$("syncLogout").addEventListener("click", syncLogout);
+$("syncClose").addEventListener("click", ()=>$("syncModal").classList.remove("show"));
+$("syncInsecure").addEventListener("change", ()=>{ syncState.insecure=$("syncInsecure").checked; persistSync(); toast("忽略证书错误已保存，重启软件后生效"); });
+
+/* 启动检查 */
+if(!crypto || !crypto.subtle){ alert("当前环境不支持 Web Crypto，请用 Chrome / Edge 浏览器打开本文件（file:// 即可）。"); }
+</script>
+</body>
+</html>
