@@ -539,6 +539,7 @@ function render(){
         ${isRdp?`<button class="iconbtn" data-act="connect" data-id="${e.id}" title="启动远程桌面连接（mstsc），自动填充账号密码">🖥 远程</button>`:""}
         ${isTerm?`<button class="iconbtn" data-act="connect" data-id="${e.id}" title="拉起 SecureCRT / 终端直接连接设备，可手动输入密码操作">${e.conn==="telnet"?"🔌 远程":"⌨ 远程"}</button>`:""}
         ${(!isRemote && e.url)?`<button class="iconbtn" data-act="open" data-id="${e.id}" title="打开条目网址">🌐</button>`:""}
+        ${(!isRemote && e.url && e.url.trim().charAt(0)!=="\\" && e.password)?`<button class="iconbtn" data-act="autologin" data-id="${e.id}" title="在隔离窗口打开网页并自动填入账号密码（密码不落盘、不进剪贴板）">🔑 登录</button>`:""}
         <button class="iconbtn" data-act="share" data-id="${e.id}" title="分享此条目（生成可直接查看的账号密码文件）">🔗</button>
         <button class="iconbtn r" data-act="del" data-id="${e.id}" title="删除此条目">🗑</button>
       </div>`;
@@ -1104,6 +1105,16 @@ $("list").addEventListener("click", async e=>{
     } else {
       window.open(u, "_blank");   // 纯 html 版兜底
     }
+  }
+  else if(act==="autologin"){
+    let u=(en.url||"").trim(); if(!u) return;
+    if(!/^\\\\/.test(u) && !/^https?:\/\//i.test(u)) u="https://"+u;  // 裸域名自动补 https://，与 🌐 一致
+    if(/^\\\\/.test(u)){ toast("共享路径不支持自动登录"); return; }
+    if(!en.password){ toast("该条目没有密码，无法自动填充"); return; }
+    if(!window.__pv || !window.__pv.autofillLogin){ toast("当前版本不支持自动登录，请重启软件"); return; }
+    const r=await window.__pv.autofillLogin({url:u, username:en.username||"", password:en.password||""});
+    if(!r || !r.ok){ toast((r && r.msg) ? r.msg : "自动登录打开失败"); return; }
+    toast("已打开隔离登录窗口，正在自动填入账号密码");
   }
   else if(act==="share"){ sharingEntry=en; $("sharePass").value=""; $("sharePassHint").style.display="none"; $("sharePassHint").textContent=""; $("shareStep1").style.display="block"; $("shareStep2").style.display="none"; setShareEnabled(false); $("shareOut").textContent=""; $("shareModal").classList.add("show"); $("sharePass").focus(); }
   else if(act==="del"){ if(confirm("删除该条目？")){ entries=entries.filter(x=>x.id!==id); dirty=true; render(); autoPersist(); toast("已删除"); } }
