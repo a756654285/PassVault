@@ -244,6 +244,111 @@ function defaultSyncServer(){
 }
 ipcMain.handle('get-default-sync', () => ({ server: defaultSyncServer() }));
 
+/* ================= 自动登录：受控窗口内填入账号密码 =================
+ * 安全边界：
+ *  - 凭据只由渲染进程经 IPC 传入主进程内存，不写文件/日志/剪贴板，不拼进 URL；
+ *  - 登录窗口 nodeIntegration=false、contextIsolation=true、sandbox=true，
+ *    并使用独立内存会话，与目标网站和保险库主窗口彻底隔离；
+ *  - 只填不点"登录"，最后一步由用户本人确认，避免误提交。
+ */
+function buildAutofillScript(user, pass) {
+  const u = JSON.stringify(String(user || ''));
+  const p = JSON.stringify(String(pass || ''));
+  return `(function(){
+    function visible(el){ try{ var s=getComputedStyle(el);
+      return s.display!=='none' && s.visibility!=='hidden' && el.getClientRects().length>0; }catch(e){ return true; } }
+    function setValue(el, v){
+      if(!el) return false;
+      try{
+        var proto = el.tagName==='TEXTAREA' ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+        var setter = Object.getOwnPropertyDescriptor(proto,'value');
+        if(setter && setter.set) setter.set.call(el, v); else el.value = v;
+      }catch(e){ el.value = v; }
+      try{
+        el.dispatchEvent(new Event('input',{bubbles:true}));
+        el.dispatchEvent(new Event('change',{bubbles:true}));
+      }catch(e){}
+      return true;
+    }
+    var pwList = Array.prototype.slice.call(document.querySelectorAll('input[type=password]')).filter(visible);
+    if(!pwList.length) return {ok:false, reason:'no-password-field'};
+    var pw = pwList[0];
+    if(pw.value && pw.value.length) return {ok:true, reason:'already-filled'};
+    var scope = pw.form || document;
+    var all = Array.prototype.slice.call(scope.querySelectorAll('input')).filter(visible).filter(function(x){
+      return x!==pw && x.type!=='password' && x.type!=='hidden' && x.type!=='submit' &&
+             x.type!=='button' && x.type!=='checkbox' && x.type!=='radio';
+    });
+    var nameRe = /user|account|login|email|mail|phone|tel|username|zhanghao/i;
+    var acc = all.filter(function(x){ return nameRe.test([x.name,x.id,x.placeholder,x.autocomplete].join(' ')); })[0];
+    if(!acc) acc = all.filter(function(x){ return /^(text|email|tel)$/.test(x.type); })[0];
+    if(!acc) acc = all[0];
+    var filledUser = acc ? setValue(acc, ${u}) : false;
+    var filledPass = setValue(pw, ${p});
+    return {ok:filledPass, filledUser:filledUser};
+  })()`;
+}
+
+ipcMain.handle('autofill-login', async (e, opt) => {
+  let url = '', user = '', pass = '';
+  try {
+    url  = String((opt && opt.url) || '').trim();
+    user = String((opt && opt.username) || '');
+    pass = String((opt && opt.password) || '');
+  } catch (err) {}
+  if (!/^https?:\/\//i.test(url)) return { ok:false, msg:'仅支持 http/https 网址' };
+  if (!pass) return { ok:false, msg:'该条目没有密码，无法自动填充' };
+
+  try {
+    const win = new BrowserWindow({
+      width: 1080, height: 780,
+      title: 'PassVault 自动登录 · 正在填入',
+      backgroundColor: '#ffffff',
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true,
+        sandbox: true,
+        webSecurity: true,
+        partition: 'pv-autologin-temp'   // 非 persist: → 内存会话，关闭即清空 Cookie
+      }
+    });
+    win.removeMenu();
+
+    let round = 0;
+    const fillFrame = async (frame) => {
+      if (!frame || win.isDestroyed()) return;
+      try {
+        const r = await frame.executeJavaScript(buildAutofillScript(user, pass));
+        if (r && r.ok) win.setTitle('PassVault 自动登录 · 已填入（请自行确认登录）');
+      } catch (err) {}
+    };
+    const fillAll = async () => {
+      if (win.isDestroyed()) return;
+      try {
+        const root = win.webContents.mainFrame;
+        const frames = (root && root.framesInSubtree) ? root.framesInSubtree : [root];
+        for (const f of frames) await fillFrame(f);
+      } catch (err) { await fillFrame(win.webContents.mainFrame); }
+    };
+    win.webContents.on('did-finish-load', () => {
+      round = 0;
+      setTimeout(async () => {
+        const doRound = async () => {
+          if (win.isDestroyed()) return;
+          await fillAll();
+          round++;
+          if (round < 4) setTimeout(doRound, 900);   // 兼容 SPA/延迟渲染的登录页
+        };
+        doRound();
+      }, 400);
+    });
+    win.loadURL(url);
+    return { ok:true };
+  } catch (err) {
+    return { ok:false, msg:'打开登录窗口失败：' + String((err && err.message) || err) };
+  }
+});
+
 function createWindow() {
   const win = new BrowserWindow({
     width: 1180,

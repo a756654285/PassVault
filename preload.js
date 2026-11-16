@@ -19,6 +19,8 @@ contextBridge.exposeInMainWorld('__pv', {
   clearAutoSave: () => ipcRenderer.invoke('autosave-clear'),
   // 用系统默认浏览器打开网址（URL 由主进程校验：仅允许 http/https）
   openExternal: (url) => ipcRenderer.invoke('open-external', url),
+  // 自动登录：在隔离的受控窗口中打开网页并填入账号密码（凭据仅在进程内存中传递，不落盘）
+  autofillLogin: (opt) => ipcRenderer.invoke('autofill-login', opt),
   // 启动 Windows 远程桌面（mstsc）连接，自动填充账号密码
   launchRdp: (opt) => ipcRenderer.invoke('launch-rdp', opt),
   // 打开一个新终端窗口执行给定命令（用于 SSH 等远程连接）
