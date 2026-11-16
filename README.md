@@ -13,17 +13,28 @@
 - **分组管理**：分组栏可拖动排序，列表条目可拖动排序，顺序随库一起加密保存
 - **完整迁移**：「数据库迁移」导出完整备份（含分组顺序），另一台电脑一键导入，支持不同主密码、覆盖或合并
 - **远程连接**：条目可记录 RDP / SSH / Telnet 主机，一键拉起 mstsc、SecureCRT 或系统终端
+- **🔑 一键登录**（v1.1.0 新增）：有网址 + 密码的条目点一下，在独立隔离窗口打开网页并自动填入账号密码；网址没写 `https://` 会自动补全。**只填不提交**，最后一步由你本人确认；验证码 / 二次验证需手动完成
 - **分享单条**：生成 `.txt` / Word 明文文件（需先输入主密码确认）
 - **完全离线**：云同步功能已停用，软件运行时不发起任何网络请求
 
+> **v1.1.0 更新**：新增 🔑 一键登录（自动填表，凭据只在进程内存中传递，不写文件、不进剪贴板、不拼进网址）；一键登录按钮现在对裸域名也生效。其余功能与 v1.0.0 一致。详见 [使用说明.txt](使用说明.txt)。
+
 ## 下载与运行
 
-从 [Releases](https://github.com/a756654285/PassVault/releases) 下载 `PassVault-v1.0.0-win64.zip`，**解压整个文件夹**后双击 `PassVault.exe`。
+适用系统：**64 位 Windows 10 / 11**（目前只提供 win32-x64 版本）。
+
+从 [Releases · v1.1.0](https://github.com/a756654285/PassVault/releases/tag/v1.1.0) 下载 `PassVault-v1.1.0-win64.zip`，**解压整个文件夹**后双击 `PassVault.exe`。
 
 首次运行时 Windows 可能提示「Windows 已保护你的电脑」（未购买代码签名证书）：点「更多信息」→「仍要运行」。可先用 `SHA256SUMS.txt` 校验文件完整性：
 
 ```powershell
-Get-FileHash .\PassVault-v1.0.0-win64.zip -Algorithm SHA256
+Get-FileHash .\PassVault-v1.1.0-win64.zip -Algorithm SHA256
+```
+
+v1.1.0 的正确值（与 Release 附件 `SHA256SUMS.txt` 一致）：
+
+```
+64c6ba8a2f91b1e9a189a484103164cb1076b1b76c7442bc732aeffed7ea3ba7
 ```
 
 首次输入的**主密码即创建保险库**，请务必牢记 —— 主密码不上传、不缓存、不可找回，开发者也无法解密你的数据。
@@ -52,7 +63,7 @@ npm run pack       # 打包到 ./dist（electron-packager）
 打 Release 包（会硬性拦截 `数据库` 文件夹与 `.vault` 文件，防止真实密码被打包）：
 
 ```bash
-python scripts/build_release.py --version 1.0.0 --source <成品目录> --outdir <输出目录>
+python scripts/build_release.py --version 1.1.0 --source <成品目录> --outdir <输出目录>
 ```
 
 不带参数时默认读 `dist/PassVault-win32-x64`、输出到 `dist/release`。
