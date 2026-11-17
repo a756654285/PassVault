@@ -56,6 +56,11 @@
   .field{margin-bottom:14px;}
   .field label{display:block; color:var(--dim); font-size:12px; margin-bottom:6px;}
   .field input{width:100%;}
+  /* 分组选择：与「连接方式」一致的原生 select；选"输入新分组"时展开自定义输入框 */
+  #f_group_custom{margin-top:8px; display:none;}
+  /* 弹窗内输入框/下拉框统一尺寸，保证左右两列的框严格对齐 */
+  .modal .field input, .modal .field select{width:100%; height:40px; line-height:22px; padding:8px 10px;}
+  .modal .field textarea{width:100%; padding:8px 10px; line-height:1.5;}
   .warn{color:var(--amber); font-size:12px; border-left:2px solid var(--amber);
     padding:6px 10px; background:rgba(255,207,58,.06); margin:10px 0;}
 
@@ -223,7 +228,10 @@
     <h3 id="editTitle">＋ 新增条目</h3>
     <div class="row">
       <div class="field"><label>标题 / 站点</label><input id="f_title" placeholder="例如：公司OA"></div>
-      <div class="field"><label>分组</label><input id="f_group" placeholder="例如：工作 / 个人"></div>
+      <div class="field"><label>分组</label>
+        <select id="f_group"></select>
+        <input id="f_group_custom" placeholder="输入新分组名称" autocomplete="off">
+      </div>
     </div>
     <div class="row">
       <div class="field"><label>账号 / 用户名</label><input id="f_username" placeholder="登录账号"></div>
@@ -550,11 +558,67 @@ function render(){
 function esc(s){ return String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
 
 /* ============ 编辑 ============ */
+const GROUP_CUSTOM = "__custom__";   // 选此项时展开自定义分组输入框
+/* 分组下拉：按分组栏顺序收集所有已有分组，风格与「连接方式」一致 */
+function fillGroupOptions(current){
+  const opts = new Set();
+  groupOrder.forEach(g=>{ if(g && typeof g==="string") opts.add(g); });
+  entries.forEach(e=>{ if(e.group) opts.add(e.group); });
+  const list = [...opts];
+  let html = `<option value="">— 无分组 —</option>`;
+  html += list.map(g=>`<option value="${esc(g)}">${esc(g)}</option>`).join("");
+  html += `<option value="${GROUP_CUSTOM}">＋ 输入新分组…</option>`;
+  $("f_group").innerHTML = html;
+  // 当前分组若不在已有列表中，选中"输入新分组"并带入文本框
+  if(current && !list.includes(current)){
+    $("f_group").value = GROUP_CUSTOM;
+    $("f_group_custom").value = current;
+  }else{
+    $("f_group").value = current || "";
+    $("f_group_custom").value = "";
+  }
+  syncGroupUI();
+}
+/* 切换自定义分组输入框显示；读取分组的实际值 */
+function syncGroupUI(){
+  $("f_group_custom").style.display = ($("f_group").value===GROUP_CUSTOM) ? "block" : "none";
+}
+function groupValue(){
+  return $("f_group").value===GROUP_CUSTOM ? $("f_group_custom").value.trim() : $("f_group").value;
+}
+/* 协议智能识别：内网/本地/私有IP → http，公网域名 → https
+   说明：本地离线软件不联网探测（保护隐私、内网也查不到），按域名特征判断；
+   用户显式输入 http:// 或 https:// 时永远优先，可手动覆盖。 */
+function guessScheme(u){
+  let h = String(u||"").toLowerCase().trim();
+  h = h.replace(/^\/\//, "").split(/[/?#]/)[0];                 // 去 //、路径、查询、锚点
+  const host = h.charAt(0)==="[" ? h.slice(1, h.indexOf("]")>-1?h.indexOf("]"):h.length)
+                                 : h.split(":")[0];             // 去端口
+  if(host==="localhost" || host==="::1" || host==="0.0.0.0" || /^127\./.test(host)) return "http";
+  if(/\.(local|lan|internal|intranet|home|corp|test|localhost)$/.test(host)) return "http";
+  if(/^10\./.test(host)) return "http";                          // 10.0.0.0/8
+  if(/^192\.168\./.test(host)) return "http";                    // 192.168.0.0/16
+  if(/^172\.(1[6-9]|2\d|3[01])\./.test(host)) return "http";     // 172.16.0.0/12
+  if(/^169\.254\./.test(host)) return "http";                    // 链路本地
+  if(/^100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\./.test(host)) return "http"; // CGNAT
+  return "https";                                                // 公网域名/IP 走 https
+}
+/* 网址规范化：按域名特征自动识别 http/https；显式协议、UNC、其他协议、含空格原样保留 */
+function normUrl(u){
+  u = (u||"").trim();
+  if(!u) return "";
+  if(u.charAt(0)==="\\") return u;                                     // UNC 共享路径
+  if(/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(u)) return u;                // 已带 http:// https:// ftp:// 等
+  if(/^(mailto|tel|data|about|javascript|mstsc|rdp):/i.test(u)) return u; // 无 // 的协议
+  if(/\s/.test(u)) return u;                                           // 含空格，疑似非网址，原样
+  return guessScheme(u) + "://" + u;                                   // 裸域名/IP 智能补协议
+}
 function openEditor(id){
   editingId = id || null;
   const e = id ? entries.find(x=>x.id===id) : null;
   $("editTitle").textContent = id ? "✎ 编辑条目" : "＋ 新增条目";
-  $("f_title").value = e?e.title:""; $("f_group").value=e?e.group:"";
+  fillGroupOptions(e?e.group:"");
+  $("f_title").value = e?e.title:"";
   $("f_username").value=e?e.username:""; $("f_url").value=e?e.url:"";
   $("f_conn").value=e?(e.conn||""):""; $("f_host").value=e?(e.host||""):""; $("f_domain").value=e?(e.domain||""):"";
   $("f_password").value=e?e.password:""; $("f_note").value=e?e.note:"";
@@ -585,8 +649,8 @@ function updateMeter(){
   $("pwStrength").textContent = "强度："+t+(p?` (${p.length} 位)`:"");
 }
 function saveEditor(){
-  const obj={ title:$("f_title").value.trim(), group:$("f_group").value.trim(),
-    username:$("f_username").value.trim(), url:$("f_url").value.trim(),
+  const obj={ title:$("f_title").value.trim(), group:groupValue(),
+    username:$("f_username").value.trim(), url:normUrl($("f_url").value),
     password:$("f_password").value, note:$("f_note").value,
     conn:$("f_conn").value, host:$("f_host").value.trim(), domain:$("f_domain").value.trim() };
   if(!obj.title && !obj.username){ toast("请填写标题或账号"); return; }
@@ -610,13 +674,13 @@ async function autoSave(){
   const conn=$("f_conn").value, host=$("f_host").value.trim(), domain=$("f_domain").value.trim();
   if(!editingId){
     if(!title && !username) return;            // 新增且空白：暂不创建草稿
-    const obj={ id:uid(), created:Date.now(), title, group:$("f_group").value.trim(),
-                username, url:$("f_url").value.trim(), password:$("f_password").value, note:$("f_note").value, conn, host, domain };
+    const obj={ id:uid(), created:Date.now(), title, group:groupValue(),
+                username, url:normUrl($("f_url").value), password:$("f_password").value, note:$("f_note").value, conn, host, domain };
     entries.unshift(obj); editingId=obj.id;     // 首次输入即落为草稿
   } else {
     const e=entries.find(x=>x.id===editingId); if(!e) return;
-    Object.assign(e, { title, group:$("f_group").value.trim(), username,
-      url:$("f_url").value.trim(), password:$("f_password").value, note:$("f_note").value, conn, host, domain });
+    Object.assign(e, { title, group:groupValue(), username,
+      url:normUrl($("f_url").value), password:$("f_password").value, note:$("f_note").value, conn, host, domain });
   }
   await autoPersist();
   toast("已自动保存");
@@ -1099,7 +1163,7 @@ $("list").addEventListener("click", async e=>{
         return;
       }
     }
-    if(!isUNC && !/^https?:\/\//i.test(u)) u="https://"+u;   // 用户填 pan.baidu.com 这类无协议网址时自动补 https://
+    if(!isUNC) u=normUrl(u);   // 按域名特征智能补协议（内网 http / 公网 https），与保存逻辑一致
     if(window.__pv && window.__pv.openExternal){
       window.__pv.openExternal(u).then(ok=>{ if(!ok) toast(isUNC?"共享路径打开失败，请检查路径或网络是否可达":"网址无效或打开失败"); });
     } else {
@@ -1108,7 +1172,7 @@ $("list").addEventListener("click", async e=>{
   }
   else if(act==="autologin"){
     let u=(en.url||"").trim(); if(!u) return;
-    if(!/^\\\\/.test(u) && !/^https?:\/\//i.test(u)) u="https://"+u;  // 裸域名自动补 https://，与 🌐 一致
+    if(!/^\\\\/.test(u)) u=normUrl(u);  // 智能补协议，与 🌐 及保存逻辑一致
     if(/^\\\\/.test(u)){ toast("共享路径不支持自动登录"); return; }
     if(!en.password){ toast("该条目没有密码，无法自动填充"); return; }
     if(!window.__pv || !window.__pv.autofillLogin){ toast("当前版本不支持自动登录，请重启软件"); return; }
@@ -1130,7 +1194,8 @@ $("eyeBtn").addEventListener("click", ()=>{
   i.focus();
 });
 $("f_password").addEventListener("input", ()=>{ updateMeter(); scheduleAutoSave(); });
-["f_title","f_group","f_username","f_url","f_note","f_host","f_domain"].forEach(id=> $(id).addEventListener("input", scheduleAutoSave));
+["f_title","f_username","f_url","f_note","f_host","f_domain","f_group_custom"].forEach(id=> $(id).addEventListener("input", scheduleAutoSave));
+$("f_group").addEventListener("change", ()=>{ syncGroupUI(); scheduleAutoSave(); });
 $("f_conn").addEventListener("change", ()=>{
   // 从"网页"切到远程时，若主机为空且网址像主机，则自动带入，省一次输入
   const c=$("f_conn").value;
