@@ -1,5 +1,5 @@
 // PassVault 桌面壳：把本地 PassVault.html 作为单页应用加载，免安装、离线、本地
-const { app, BrowserWindow, ipcMain, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, shell, Menu, Tray } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const cp = require('child_process');
@@ -349,6 +349,47 @@ ipcMain.handle('autofill-login', async (e, opt) => {
   }
 });
 
+/* ================= 关闭行为：点右上角 X 时询问「最小化到托盘」还是「退出」=================
+ * isQuitting 标记真退出，避免退出时再被 close 拦截形成死循环。
+ * 最小化到托盘后：单击/双击托盘图标恢复窗口，右键菜单可显示或退出。
+ */
+let isQuitting = false;
+let tray = null;
+
+function createTray(win) {
+  if (tray) return tray;
+  const icon = path.join(__dirname, 'tray.ico');
+  tray = new Tray(fs.existsSync(icon) ? icon : path.join(__dirname, 'app', 'tray.ico'));
+  tray.setToolTip('PassVault · 密码保险库');
+  const show = () => { if (win && !win.isDestroyed()) { win.show(); win.focus(); } };
+  const quit = () => { isQuitting = true; app.quit(); };
+  tray.setContextMenu(Menu.buildFromTemplate([
+    { label: '显示主窗口', click: show },
+    { type: 'separator' },
+    { label: '退出 PassVault', click: quit }
+  ]));
+  tray.on('click', show);        // 单击托盘图标恢复窗口
+  tray.on('double-click', show); // 双击也恢复
+  return tray;
+}
+
+function handleWindowClose(win, e) {
+  if (isQuitting) return;        // 真退出流程，不拦截
+  e.preventDefault();            // 拦住默认关闭
+  // 让页面弹出主题化的关闭确认框（与软件深色风格一致）
+  try { win.webContents.send('close-ask'); }
+  catch (err) { isQuitting = true; app.quit(); }  // 页面未就绪时的兜底：直接退出
+}
+
+// 用户在主题弹窗里做出选择后回传：0 最小化到托盘 / 1 退出 / 2 取消
+ipcMain.handle('close-choice', (e, choice) => {
+  const win = BrowserWindow.fromWebContents(e.sender);
+  if (choice === 0) { if (win) { createTray(win); win.hide(); } }
+  else if (choice === 1) { isQuitting = true; app.quit(); }
+  // choice === 2 取消：页面自己关掉弹窗即可，窗口保持打开
+  return true;
+});
+
 function createWindow() {
   const win = new BrowserWindow({
     width: 1180,
@@ -382,14 +423,30 @@ function createWindow() {
     const fallback = path.join(app.getPath('downloads'), item.getFilename());
     if (!item.getFilename()) item.setSavePath(fallback);
   });
+
+  // 点右上角 X：询问最小化到托盘 / 退出软件
+  win.on('close', (e) => handleWindowClose(win, e));
+
+  // 托盘图标随主窗口创建，点右下角图标即可恢复
+  createTray(win);
 }
 
 app.whenReady().then(() => {
   migrateLegacyData();   // 旧路径数据一次性搬迁（只复制，不删原件）
   createWindow();
-  app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
+  app.on('activate', () => {
+    const wins = BrowserWindow.getAllWindows();
+    if (wins.length) { wins[0].show(); wins[0].focus(); }
+    else createWindow();
+  });
 });
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
+});
+
+// 真正退出时销毁托盘图标，避免系统托盘残留
+app.on('before-quit', () => {
+  isQuitting = true;
+  if (tray) { try { tray.destroy(); } catch (e) {} tray = null; }
 });

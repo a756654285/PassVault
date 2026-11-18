@@ -126,6 +126,10 @@
   .modal .row{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
   .modal .row.full{grid-template-columns:1fr;}
   .modal .opsbar{display:flex; justify-content:flex-end; gap:10px; margin-top:18px;}
+  /* 关闭确认弹窗：垂直居中 + 可拖动（不影响其他弹窗的 flex-start） */
+  #closeModal{align-items:center;}
+  #closeModal .modal{position:relative; cursor:move; user-select:none;}
+  #closeModal .modal .opsbar{cursor:default; user-select:auto;}
   textarea{width:100%; min-height:90px; resize:vertical; font-size:13px;}
   .shareout{background:#06100b; border:1px solid var(--line); border-radius:4px;
     padding:10px; color:var(--cyan); word-break:break-all; font-size:12px; max-height:120px; overflow:auto;}
@@ -341,6 +345,25 @@
   </div>
 </div>
 <input type="file" id="backupFile" accept=".vault,.json" style="display:none;">
+
+<!-- 关闭确认（主题化，替代系统原生弹窗） -->
+<div class="modal-bg" id="closeModal">
+  <div class="modal" style="width:460px;">
+    <h3>⏻ 关闭 PassVault</h3>
+    <div class="tag" style="display:block; line-height:1.9; margin-bottom:6px;">
+      要如何关闭程序？<br>
+      <span style="color:var(--muted);">
+        · <span style="color:var(--green);">最小化到托盘</span>：缩到右下角托盘区，点绿色锁图标可重新打开<br>
+        · <span style="color:var(--red);">退出软件</span>：完全关闭（数据已自动保存）
+      </span>
+    </div>
+    <div class="opsbar">
+      <button class="btn ghost" id="closeCancel">取消</button>
+      <button class="btn danger" id="closeQuit">退出软件</button>
+      <button class="btn" id="closeTray">⬇ 最小化到托盘</button>
+    </div>
+  </div>
+</div>
 
 <div class="toast" id="toast"></div>
 
@@ -1353,6 +1376,41 @@ $("syncPull").addEventListener("click", ()=>syncPull(false));
 $("syncLogout").addEventListener("click", syncLogout);
 $("syncClose").addEventListener("click", ()=>$("syncModal").classList.remove("show"));
 $("syncInsecure").addEventListener("change", ()=>{ syncState.insecure=$("syncInsecure").checked; persistSync(); toast("忽略证书错误已保存，重启软件后生效"); });
+
+/* ===== 关闭确认：主题化弹窗（主进程点 X 时触发）===== */
+function closePick(choice){
+  $("closeModal").classList.remove("show");
+  try{ if(window.__pv && window.__pv.closeChoice) window.__pv.closeChoice(choice); }catch(e){}
+}
+$("closeTray").addEventListener("click", ()=>closePick(0));
+$("closeQuit").addEventListener("click", ()=>closePick(1));
+$("closeCancel").addEventListener("click", ()=>closePick(2));
+
+/* 弹窗拖动：按住弹窗任意空白处拖动，按钮上不触发；每次打开重置到居中 */
+(function(){
+  const modal = $("closeModal").querySelector(".modal");
+  let dragging=false, offX=0, offY=0, curX=0, curY=0;
+  modal.addEventListener("mousedown", (e)=>{
+    if(e.target && e.target.tagName==="BUTTON") return;  // 按钮上不启动拖动，避免误点
+    dragging=true; offX=e.clientX-curX; offY=e.clientY-curY;
+    e.preventDefault();
+  });
+  window.addEventListener("mousemove", (e)=>{
+    if(!dragging) return;
+    curX=e.clientX-offX; curY=e.clientY-offY;
+    modal.style.transform="translate("+curX+"px,"+curY+"px)";
+  });
+  window.addEventListener("mouseup", ()=>{ dragging=false; });
+  window.addEventListener("blur", ()=>{ dragging=false; });  // 失焦兜底，避免拖动粘住
+  window.__resetCloseModal=()=>{ curX=0; curY=0; modal.style.transform=""; };
+})();
+
+if(window.__pv && window.__pv.onCloseAsk){
+  window.__pv.onCloseAsk(()=>{
+    if(window.__resetCloseModal) window.__resetCloseModal();
+    $("closeModal").classList.add("show");
+  });
+}
 
 /* 启动检查 */
 if(!crypto || !crypto.subtle){ alert("当前环境不支持 Web Crypto，请用 Chrome / Edge 浏览器打开本文件（file:// 即可）。"); }

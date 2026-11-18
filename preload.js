@@ -31,5 +31,8 @@ contextBridge.exposeInMainWorld('__pv', {
   readSyncConfig: () => ipcRenderer.invoke('sync-config-read'),
   writeSyncConfig: (obj) => ipcRenderer.invoke('sync-config-write', obj),
   // 读取软件内置的默认同步服务器地址（开发者配置，最终用户无需填写）
-  getDefaultSync: () => ipcRenderer.invoke('get-default-sync')
+  getDefaultSync: () => ipcRenderer.invoke('get-default-sync'),
+  // 关闭窗口询问：主进程点 X 时通知页面显示主题化弹窗（0最小化托盘/1退出/2取消）
+  onCloseAsk: (cb) => ipcRenderer.on('close-ask', () => cb()),
+  closeChoice: (choice) => ipcRenderer.invoke('close-choice', choice)
 });

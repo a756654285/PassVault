@@ -18,8 +18,11 @@
 - **分组下拉选择**（v1.1.1 新增）：新增 / 编辑条目时「分组」改为下拉框，直接选已有分组，无需手输；选「＋ 输入新分组…」仍可创建新分组
 - **🔐 加密分享**（v1.1.2 新增）：分享需先输入主密码确认，再由你设置「文件打开密码」，生成自解密的加密 `.html` 文件——对方用浏览器打开、输密码才能查看，支持复制 / 另存 Word / 打印。两层密码都不写入文件
 - **⏳ 分享有效期**（v1.1.2 新增）：可选 1 / 3 / 7 / 30 天或永久，默认 7 天；到期后文件显示「此分享已过期」无法查看，到期时间用 AES-GCM 绑定防篡改
+- **⏻ 关闭可最小化到托盘**（v1.1.3 新增）：点右上角 X 弹出主题化确认框，可选「最小化到托盘」（右下角绿色锁图标，单击/双击恢复，右键显示或退出）或「退出软件」；确认框居中、可用鼠标拖动
 - **完全离线**：云同步功能已停用，软件运行时不发起任何网络请求
 
+> **v1.1.3 更新**：关闭窗口改为询问「最小化到托盘 / 退出软件」，弹窗与软件深色主题一致、居中且可拖动。其余功能与 v1.1.2 一致，详见 [使用说明.txt](使用说明.txt)。
+>
 > **v1.1.2 更新**：新增加密分享（双密码保护）与分享有效期（默认 7 天）；分享按钮简化为一步到位。详见下方「关于分享有效期」与使用说明。
 >
 > **v1.1.1 更新**：分组字段改为下拉选择（含新建分组）；网址按域名智能识别 http / https（内网走 http、公网走 https、显式协议优先）；弹窗输入框对齐。其余功能与 v1.1.0 一致。详见 [使用说明.txt](使用说明.txt)。
@@ -30,18 +33,18 @@
 
 适用系统：**64 位 Windows 10 / 11**（目前只提供 win32-x64 版本）。
 
-从 [Releases · v1.1.2](https://github.com/a756654285/PassVault/releases/tag/v1.1.2) 下载 `PassVault-v1.1.2-win64.zip`，**解压整个文件夹**后双击 `PassVault.exe`。
+从 [Releases · v1.1.3](https://github.com/a756654285/PassVault/releases/tag/v1.1.3) 下载 `PassVault-v1.1.3-win64.zip`，**解压整个文件夹**后双击 `PassVault.exe`。
 
 首次运行时 Windows 可能提示「Windows 已保护你的电脑」（未购买代码签名证书）：点「更多信息」→「仍要运行」。可先用 `SHA256SUMS.txt` 校验文件完整性：
 
 ```powershell
-Get-FileHash .\PassVault-v1.1.2-win64.zip -Algorithm SHA256
+Get-FileHash .\PassVault-v1.1.3-win64.zip -Algorithm SHA256
 ```
 
-v1.1.2 的正确值（与 Release 附件 `SHA256SUMS.txt` 一致）：
+v1.1.3 的正确值（与 Release 附件 `SHA256SUMS.txt` 一致）：
 
 ```
-022c80c43d1ce68637d91ba442eca8feb3ac1a1cb4280bc792c40c9df57ef32c
+6267c3af01fbadc394876ab35680829ebd03a6171224c6e081b9d9a501073051
 ```
 
 首次输入的**主密码即创建保险库**，请务必牢记 —— 主密码不上传、不缓存、不可找回，开发者也无法解密你的数据。
@@ -76,7 +79,7 @@ npm run pack       # 打包到 ./dist（electron-packager）
 打 Release 包（会硬性拦截 `数据库` 文件夹与 `.vault` 文件，防止真实密码被打包）：
 
 ```bash
-python scripts/build_release.py --version 1.1.2 --source <成品目录> --outdir <输出目录>
+python scripts/build_release.py --version 1.1.3 --source <成品目录> --outdir <输出目录>
 ```
 
 不带参数时默认读 `dist/PassVault-win32-x64`、输出到 `dist/release`。
@@ -84,8 +87,9 @@ python scripts/build_release.py --version 1.1.2 --source <成品目录> --outdir
 目录结构：
 
 ```
-main.js            Electron 主进程：窗口、本地文件读写、RDP/终端调用
+main.js            Electron 主进程：窗口/托盘、本地文件读写、RDP/终端调用
 preload.js         contextBridge 安全桥接
+tray.ico           系统托盘图标（绿色锁）
 app/PassVault.html 单页界面 + 加解密逻辑（Web Crypto）
 package.json       构建脚本
 scripts/           Release 打包与校验脚本
