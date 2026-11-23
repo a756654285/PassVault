@@ -1,0 +1,34 @@
+{
+  "version": "1.1.4",
+  "date": "2026-11-23",
+  "notes": "修复内置浏览器版本检测(伪装UA);新增软件内[检查更新]功能,后续更新无需重复下载完整包",
+  "baseUrl": "https://raw.githubusercontent.com/a756654285/PassVault/main/updates/1.1.4",
+  "releasePage": "https://github.com/a756654285/PassVault/releases",
+  "files": [
+    {
+      "path": "main.js",
+      "sha256": "6c8551b08a71d61c5cc6b518fe203ed7216a048cd10539cdaa734b0d7252d069",
+      "size": 20931
+    },
+    {
+      "path": "preload.js",
+      "sha256": "4b3d71f3625a1010a396abe2b6ca9905f09a39f60b74b783dd7d7205f2ab0329",
+      "size": 2636
+    },
+    {
+      "path": "updater.js",
+      "sha256": "4b1a1876a7f910712b6b7adb5537f26474ee1dd6b6f2530a593d01437205f2a5",
+      "size": 7683
+    },
+    {
+      "path": "app/PassVault.html",
+      "sha256": "5e912c48486b3ed145a8909a8610c56a5042bf68865876b70a05003914013086",
+      "size": 84030
+    },
+    {
+      "path": "package.json",
+      "sha256": "dc274ef080060c993fafc1c7e5a19bd50add5875c16f2d8cba750ecb1b9de97a",
+      "size": 678
+    }
+  ]
+}
