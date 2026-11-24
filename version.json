@@ -1,8 +1,12 @@
 {
-  "version": "1.1.4",
+  "version": "1.1.5",
   "date": "2026-11-23",
-  "notes": "修复内置浏览器版本检测(伪装UA);新增软件内[检查更新]功能,后续更新无需重复下载完整包",
-  "baseUrl": "https://raw.githubusercontent.com/a756654285/PassVault/main/updates/1.1.4",
+  "notes": "新增多源自动切换与Ed25519清单验签,提升更新可靠性与防篡改能力",
+  "baseUrl": "https://raw.githubusercontent.com/a756654285/PassVault/main/updates/1.1.5",
+  "baseUrls": [
+    "https://raw.githubusercontent.com/a756654285/PassVault/main/updates/1.1.5",
+    "https://cdn.jsdelivr.net/gh/a756654285/PassVault@main/updates/1.1.5"
+  ],
   "releasePage": "https://github.com/a756654285/PassVault/releases",
   "files": [
     {
@@ -17,8 +21,8 @@
     },
     {
       "path": "updater.js",
-      "sha256": "4b1a1876a7f910712b6b7adb5537f26474ee1dd6b6f2530a593d01437205f2a5",
-      "size": 7683
+      "sha256": "0124eb631c7f240aedb0bfd58e47161d31796d4b0a3192f4fcef6ba1e4506bc9",
+      "size": 12035
     },
     {
       "path": "app/PassVault.html",
@@ -27,8 +31,8 @@
     },
     {
       "path": "package.json",
-      "sha256": "dc274ef080060c993fafc1c7e5a19bd50add5875c16f2d8cba750ecb1b9de97a",
-      "size": 678
+      "sha256": "2d1b87e0c8dbc588b1827189a87fde7592cb8e0168d547bee9e2c25d44bf7a9c",
+      "size": 700
     }
   ]
 }

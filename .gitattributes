@@ -1,3 +1,6 @@
 # 更新增量文件必须与 version.json 里的 SHA-256 逐字节一致，禁止 git 换行符转换
+# version.sig 是对 version.json 原始字节的签名，同样禁止换行符转换
 updates/** -text
 version.json -text
+version.sig -text
+public-key.txt -text
