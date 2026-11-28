@@ -1,6 +1,6 @@
 {
   "name": "passvault",
-  "version": "1.1.5",
+  "version": "1.1.6",
   "description": "PassVault 本地加密密码保险库 - 免安装桌面版",
   "main": "main.js",
   "private": true,
