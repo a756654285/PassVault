@@ -6,82 +6,119 @@
 <title>PASSVAULT // 密码保险库</title>
 <style>
   :root{
-    --bg:#04080a; --panel:#0a1410; --panel2:#0c1a12; --line:#16331f;
-    --green:#00ff66; --green-dim:#1f9d55; --cyan:#36e0ff; --amber:#ffcf3a;
-    --red:#ff4d5e; --text:#bff7cf; --dim:#5f8a6a; --glow:0 0 8px rgba(0,255,102,.35);
+    --bg:#050b08; --panel:rgba(12,26,18,.86); --panel2:rgba(9,22,15,.97);
+    --line:rgba(60,120,80,.26); --line-hi:rgba(0,255,102,.45);
+    --green:#00ff66; --green-2:#00d857; --green-dim:#1f9d55;
+    --cyan:#36e0ff; --amber:#ffcf3a; --red:#ff4d5e;
+    --text:#c9f7d8; --dim:#6f9a7c;
+    --glow:0 0 10px rgba(0,255,102,.28);
+    --glow-lg:0 0 28px rgba(0,255,102,.22);
+    --grad:linear-gradient(135deg,#00ff66,#00c8ff);
   }
   *{box-sizing:border-box;}
   html,body{height:100%;}
   body{
     margin:0; background:var(--bg); color:var(--text);
     font-family:'Consolas','SF Mono','JetBrains Mono','Courier New',monospace;
-    font-size:14px; line-height:1.5;
+    font-size:14px; line-height:1.55; min-height:100vh;
     background-image:
-      linear-gradient(rgba(0,255,102,.035) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(0,255,102,.035) 1px, transparent 1px);
-    background-size:32px 32px;
+      radial-gradient(circle at 12% 8%, rgba(0,255,102,.10), transparent 32%),
+      radial-gradient(circle at 88% 92%, rgba(0,200,255,.07), transparent 35%),
+      linear-gradient(rgba(0,255,102,.030) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,255,102,.030) 1px, transparent 1px);
+    background-size:auto,auto,32px 32px,32px 32px;
     background-attachment:fixed;
   }
   ::selection{background:var(--green); color:#021;}
   button{font-family:inherit; cursor:pointer;}
-  input,select,textarea{font-family:inherit; background:#06100b; color:var(--text);
-    border:1px solid var(--line); border-radius:4px; padding:8px 10px; outline:none;}
-  input:focus,select:focus,textarea:focus{border-color:var(--green); box-shadow:var(--glow);}
-  .btn{background:#06130c; color:var(--green); border:1px solid var(--green-dim);
-    border-radius:4px; padding:8px 14px; letter-spacing:.5px; transition:.15s;}
-  .btn:hover{background:var(--green); color:#021; box-shadow:var(--glow);}
-  .btn.ghost{color:var(--dim); border-color:var(--line);}
-  .btn.ghost:hover{color:var(--green); background:#081a10; box-shadow:none;}
-  .btn.danger{color:var(--red); border-color:#7a2330;}
-  .btn.danger:hover{background:var(--red); color:#fff; box-shadow:0 0 8px rgba(255,77,94,.4);}
-  .wrap{max-width:1080px; margin:0 auto; padding:18px;}
+  input,select,textarea{font-family:inherit; background:rgba(4,16,10,.85); color:var(--text);
+    border:1px solid var(--line); border-radius:6px; padding:9px 11px; outline:none;
+    transition:border-color .18s, box-shadow .18s, background .18s;}
+  input:focus,select:focus,textarea:focus{border-color:var(--green); box-shadow:var(--glow); background:#06120c;}
+  input::placeholder,textarea::placeholder{color:#4a6b56;}
+  /* 自定义滚动条 */
+  ::-webkit-scrollbar{width:9px;height:9px;}
+  ::-webkit-scrollbar-track{background:#07100b;}
+  ::-webkit-scrollbar-thumb{background:#194f30; border-radius:6px; border:2px solid #07100b;}
+  ::-webkit-scrollbar-thumb:hover{background:var(--green-dim);}
 
-  /* 顶部栏 */
-  .topbar{display:flex; align-items:center; justify-content:space-between;
-    border:1px solid var(--line); border-radius:6px; padding:12px 16px;
-    background:linear-gradient(180deg,#0b1a12,#06100b); box-shadow:var(--glow);}
-  .logo{font-size:18px; font-weight:bold; color:var(--green); letter-spacing:2px;
-    text-shadow:var(--glow);}
+  .btn{background:rgba(0,255,102,.07); color:var(--green); border:1px solid var(--green-dim);
+    border-radius:6px; padding:9px 15px; letter-spacing:.5px; transition:.18s;
+    display:inline-flex; align-items:center; justify-content:center; gap:6px;}
+  .btn:hover{background:var(--green); color:#021; box-shadow:var(--glow-lg);}
+  .btn:active{transform:translateY(0);}
+  .btn.ghost{color:var(--dim); border-color:var(--line); background:rgba(255,255,255,.02);}
+  .btn.ghost:hover{color:var(--green); background:rgba(0,255,102,.08); box-shadow:var(--glow);}
+  .btn.danger{color:var(--red); border-color:#7a2330;}
+  .btn.danger:hover{background:var(--red); color:#fff; box-shadow:0 0 10px rgba(255,77,94,.45);}
+  .btn.primary{background:var(--grad); color:#04160c; border:none; font-weight:bold;
+    box-shadow:0 0 18px rgba(0,255,102,.3);}
+  .btn.primary:hover{box-shadow:0 0 26px rgba(0,255,102,.55);}
+  .wrap{max-width:1100px; margin:0 auto; padding:20px;}
+
+  /* 顶部栏：玻璃拟态 + 顶部高光 */
+  .topbar{position:relative; display:flex; align-items:center; justify-content:space-between;
+    gap:14px; border:1px solid var(--line); border-radius:12px; padding:14px 18px;
+    background:linear-gradient(135deg,rgba(12,30,20,.92),rgba(6,18,12,.88));
+    backdrop-filter:blur(12px); box-shadow:var(--glow-lg), inset 0 1px 0 rgba(0,255,102,.12);}
+  .topbar:before{content:""; position:absolute; left:14px; right:14px; top:0; height:1px;
+    background:linear-gradient(90deg,transparent,var(--green),transparent); opacity:.7;}
+  .logo{font-size:19px; font-weight:bold; letter-spacing:2.5px;
+    background:var(--grad); -webkit-background-clip:text; background-clip:text; color:transparent;
+    filter:drop-shadow(0 0 8px rgba(0,255,102,.35));}
   .logo .cur{animation:blink 1s steps(1) infinite;}
   @keyframes blink{50%{opacity:0;}}
-  .topbar .meta{color:var(--dim); font-size:12px;}
-  .topbar .actions{display:flex; gap:8px;}
+  /* 品牌区左侧：精致圆润锁图标，水平旋转一圈 */
+  .brand{display:flex; align-items:center; gap:12px;}
+  .brand-lock{width:30px; height:30px; flex:0 0 30px; display:flex; align-items:center;
+    justify-content:center; border:none; background:none; perspective:120px;}
+  .brand-lock svg{width:27px; height:27px; overflow:visible; transform-origin:50% 50%;
+    animation:lockFlipY 2.4s linear infinite; filter:drop-shadow(0 0 4px rgba(0,255,102,.45));}
+  @keyframes lockFlipY{from{transform:rotateY(0deg);}to{transform:rotateY(360deg);}}
+  @media (prefers-reduced-motion:reduce){.brand-lock svg{animation:none;}}
+  .topbar .meta{color:var(--dim); font-size:12px; margin-top:2px;}
+  .topbar .actions{display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end;}
 
   /* 解锁屏 */
-  .center{display:flex; align-items:center; justify-content:center; min-height:70vh;}
-  .card{width:420px; max-width:92vw; border:1px solid var(--line); border-radius:8px;
-    background:var(--panel); padding:26px; box-shadow:var(--glow);}
-  .card h2{margin:0 0 4px; color:var(--green); letter-spacing:1px;}
-  .card .sub{color:var(--dim); font-size:12px; margin-bottom:18px;}
-  .field{margin-bottom:14px;}
+  .center{display:flex; align-items:center; justify-content:center; min-height:74vh;}
+  .card{position:relative; width:430px; max-width:92vw; border:1px solid var(--line-hi); border-radius:16px;
+    background:linear-gradient(160deg,rgba(14,32,22,.97),rgba(6,17,11,.98));
+    padding:30px 32px; box-shadow:0 18px 60px rgba(0,0,0,.55), var(--glow-lg), inset 0 1px 0 rgba(0,255,102,.12);
+    text-align:center;}
+  .card:before{content:""; position:absolute; left:20px; right:20px; top:0; height:1px;
+    background:linear-gradient(90deg,transparent,var(--green),transparent);}
+  .card h2{margin:0 0 4px; color:var(--green); letter-spacing:2px; font-size:20px;}
+  .card .sub{color:var(--dim); font-size:12px; margin-bottom:20px;}
+  /* 解锁屏大锁 */
+  .hero-lock{display:flex; justify-content:center; margin:2px 0 14px;}
+  .hero-lock .brand-lock{width:60px; height:60px; flex-basis:60px;}
+  .hero-lock .brand-lock svg{width:56px; height:56px; filter:drop-shadow(0 0 12px rgba(0,255,102,.55));}
+  .field{margin-bottom:14px; text-align:left;}
   .field label{display:block; color:var(--dim); font-size:12px; margin-bottom:6px;}
   .field input{width:100%;}
-  /* 分组选择：与「连接方式」一致的原生 select；选"输入新分组"时展开自定义输入框 */
   #f_group_custom{margin-top:8px; display:none;}
-  /* 弹窗内输入框/下拉框统一尺寸，保证左右两列的框严格对齐 */
   .modal .field input, .modal .field select{width:100%; height:40px; line-height:22px; padding:8px 10px;}
   .modal .field textarea{width:100%; padding:8px 10px; line-height:1.5;}
   .warn{color:var(--amber); font-size:12px; border-left:2px solid var(--amber);
-    padding:6px 10px; background:rgba(255,207,58,.06); margin:10px 0;}
+    padding:7px 11px; background:rgba(255,207,58,.07); margin:10px 0; text-align:left; border-radius:0 6px 6px 0;}
 
   /* 工具栏 */
-  .toolbar{display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin:16px 0;}
+  .toolbar{display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin:18px 0 14px;}
   .toolbar .search{flex:1; min-width:200px; position:relative;}
-  .toolbar .search input{width:100%; padding-left:30px;}
-  .toolbar .search:before{content:"🔍"; position:absolute; left:9px; top:8px; opacity:.6;}
+  .toolbar .search input{width:100%; padding-left:34px; height:40px;}
+  .toolbar .search:before{content:"🔍"; position:absolute; left:11px; top:9px; opacity:.7;}
   .tag{color:var(--dim); font-size:12px;}
   .dirty{color:var(--amber);}
 
-  /* 分组栏目：搜索框下方横排，最左为「全部分组」 */
+  /* 分组栏目 */
   .groupbar{display:flex; flex-wrap:wrap; gap:8px; width:100%; margin-top:-2px; padding-bottom:2px;}
-  .gtab{background:#06130c; color:var(--dim); border:1px solid var(--line);
-    border-radius:4px; padding:5px 12px; font-size:12px; white-space:nowrap;
-    letter-spacing:.3px; transition:.15s;}
-  .gtab:hover{color:var(--green); border-color:var(--green-dim); background:#081a10;}
-  .gtab.active{background:var(--green); color:#021; border-color:var(--green);
-    font-weight:bold; box-shadow:var(--glow);}
-  .gtab .cnt{margin-left:6px; font-size:11px; opacity:.65; font-weight:normal;}
-  /* 拖拽排序：全部分组固定最左，其余可拖 */
+  .gtab{background:rgba(6,20,12,.7); color:var(--dim); border:1px solid var(--line);
+    border-radius:18px; padding:6px 14px; font-size:12px; white-space:nowrap;
+    letter-spacing:.3px; transition:.18s;}
+  .gtab:hover{color:var(--green); border-color:var(--green-dim); background:rgba(0,255,102,.08);}
+  .gtab.active{background:var(--grad); color:#04160c; border-color:transparent;
+    font-weight:bold; box-shadow:0 0 14px rgba(0,255,102,.35);}
+  .gtab .cnt{margin-left:6px; font-size:11px; opacity:.7; font-weight:normal;}
   .gtab.can-drag{cursor:grab; user-select:none;}
   .gtab.can-drag:active{cursor:grabbing;}
   .gtab .handle{margin-right:6px; font-size:11px; opacity:.45;}
@@ -91,57 +128,156 @@
 
   /* 列表 */
   .list{display:grid; gap:10px;}
-  .item{border:1px solid var(--line); border-radius:6px; background:var(--panel);
-    padding:12px 14px; display:flex; align-items:center; gap:12px;}
-  .item:hover{border-color:var(--green-dim); box-shadow:var(--glow);}
-  /* 条目拖拽排序：整行可拖，按钮区不触发；上下青色线标示插入位置 */
+  .item{position:relative; border:1px solid var(--line); border-radius:11px;
+    background:linear-gradient(135deg,rgba(12,28,19,.85),rgba(7,18,12,.85));
+    padding:14px 16px 14px 20px; display:flex; align-items:center; gap:12px;
+    transition:transform .16s, box-shadow .16s, border-color .16s;}
+  .item:before{content:""; position:absolute; left:0; top:12px; bottom:12px; width:3px;
+    border-radius:0 3px 3px 0; background:linear-gradient(180deg,var(--green),var(--cyan)); opacity:.65;}
+  .item:hover{border-color:var(--green-dim); box-shadow:var(--glow-lg);}
+  .item:hover:before{opacity:1;}
   .item.can-drag{cursor:grab;}
   .item.can-drag:active{cursor:grabbing;}
-  .item .rowhandle{cursor:grab; color:var(--dim); font-size:15px; opacity:.45;
+  .item .rowhandle{cursor:grab; color:var(--dim); font-size:15px; opacity:.4;
     user-select:none; padding:2px 3px; line-height:1;}
   .item .rowhandle:hover{opacity:1; color:var(--cyan);}
   .item.dragging{opacity:.35; border-style:dashed;}
   .item.drop-before{box-shadow:0 -3px 0 var(--cyan);}
   .item.drop-after{box-shadow:0 3px 0 var(--cyan);}
   .item .main{flex:1; min-width:0;}
-  .item .title{color:var(--text); font-weight:bold;}
-  .item .uid{color:var(--dim); font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .item .title{color:var(--text); font-weight:bold; font-size:15px;}
+  .item .uid{color:var(--dim); font-size:12px; margin-top:3px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
   .item .grp{display:inline-block; font-size:11px; color:var(--cyan); border:1px solid #1d4f5c;
-    border-radius:10px; padding:1px 9px; margin-left:8px;}
-  .item .ops{display:flex; gap:6px; flex-wrap:wrap;}
-  .iconbtn{background:#06130c; color:var(--green); border:1px solid var(--green-dim);
-    border-radius:4px; padding:6px 9px; font-size:12px; cursor:pointer;}
-  .iconbtn:hover{background:var(--green); color:#021;}
+    background:rgba(54,224,255,.07); border-radius:10px; padding:1px 9px; margin-left:8px; vertical-align:middle;}
+  .item .ops{display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end;}
+  .iconbtn{background:rgba(0,255,102,.06); color:var(--green); border:1px solid var(--green-dim);
+    border-radius:6px; padding:6px 10px; font-size:12px; transition:.15s;}
+  .iconbtn:hover{background:var(--green); color:#021; box-shadow:var(--glow);}
   .iconbtn.r{color:var(--red); border-color:#7a2330;}
   .iconbtn.r:hover{background:var(--red); color:#fff;}
-  .empty{text-align:center; color:var(--dim); padding:50px 10px; border:1px dashed var(--line); border-radius:8px;}
+  .empty{text-align:center; color:var(--dim); padding:56px 10px; border:1px dashed var(--line); border-radius:12px;
+    background:rgba(0,255,102,.02);}
 
   /* 弹窗 */
-  .modal-bg{position:fixed; inset:0; background:rgba(2,6,4,.8); display:none;
+  .modal-bg{position:fixed; inset:0; background:rgba(2,8,5,.78); backdrop-filter:blur(4px); display:none;
     align-items:flex-start; justify-content:center; padding:40px 12px; overflow:auto; z-index:50;}
   .modal-bg.show{display:flex;}
-  .modal{width:560px; max-width:94vw; border:1px solid var(--green-dim); border-radius:8px;
-    background:var(--panel2); padding:22px; box-shadow:var(--glow);}
-  .modal h3{margin:0 0 14px; color:var(--green); letter-spacing:1px;}
+  .modal{position:relative; width:560px; max-width:94vw; border:1px solid var(--green-dim); border-radius:14px;
+    background:linear-gradient(160deg,rgba(13,30,20,.99),rgba(7,18,12,.99)); padding:24px;
+    box-shadow:0 20px 70px rgba(0,0,0,.6), var(--glow-lg); animation:modalIn .18s ease-out;}
+  @keyframes modalIn{from{opacity:0; transform:translateY(-8px) scale(.99);}to{opacity:1; transform:none;}}
+  .modal:before{content:""; position:absolute; left:18px; right:18px; top:0; height:1px;
+    background:linear-gradient(90deg,transparent,var(--green),transparent);}
+  .modal h3{margin:0 0 16px; color:var(--green); letter-spacing:1px; padding-bottom:10px;
+    border-bottom:1px solid var(--line);}
   .modal .row{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
   .modal .row.full{grid-template-columns:1fr;}
   .modal .opsbar{display:flex; justify-content:flex-end; gap:10px; margin-top:18px;}
-  /* 关闭确认弹窗：垂直居中 + 可拖动（不影响其他弹窗的 flex-start） */
   #closeModal{align-items:center;}
   #closeModal .modal{position:relative; cursor:move; user-select:none;}
   #closeModal .modal .opsbar{cursor:default; user-select:auto;}
   textarea{width:100%; min-height:90px; resize:vertical; font-size:13px;}
-  .shareout{background:#06100b; border:1px solid var(--line); border-radius:4px;
+  .shareout{background:rgba(2,10,6,.9); border:1px solid var(--line); border-radius:6px;
     padding:10px; color:var(--cyan); word-break:break-all; font-size:12px; max-height:120px; overflow:auto;}
 
-  .toast{position:fixed; left:50%; bottom:28px; transform:translateX(-50%);
-    background:#06130c; color:var(--green); border:1px solid var(--green-dim);
-    padding:10px 18px; border-radius:6px; box-shadow:var(--glow); opacity:0; transition:.25s; z-index:99;}
-  .toast.show{opacity:1;}
-  .foot{color:var(--dim); font-size:11px; text-align:center; margin-top:24px;}
-  .foot b{color:var(--green-dim);}
-  .meter{height:6px; border-radius:3px; background:#06130c; border:1px solid var(--line); overflow:hidden; margin-top:6px;}
-  .meter > i{display:block; height:100%; width:0; background:var(--green); transition:.2s;}
+  .toast{position:fixed; left:50%; bottom:28px; transform:translateX(-50%) translateY(12px);
+    background:rgba(8,24,15,.96); color:var(--green); border:1px solid var(--green-dim);
+    padding:11px 20px; border-radius:8px; box-shadow:var(--glow-lg); opacity:0; transition:.25s; z-index:99;}
+  .toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
+  .foot{color:var(--dim); font-size:11px; text-align:center; margin-top:26px; line-height:1.7;}
+  .foot b{color:var(--green);}
+  .meter{height:6px; border-radius:3px; background:rgba(4,16,10,.9); border:1px solid var(--line); overflow:hidden; margin-top:6px;}
+  .meter > i{display:block; height:100%; width:0; background:var(--grad); transition:.2s; box-shadow:0 0 8px rgba(0,255,102,.5);}
+
+  /* ===== 3D 立体元素增强（纯视觉，不改布局与功能） ===== */
+  /* 1. 透视网格地板：科幻纵深感，固定在底部且不影响点击 */
+  body{position:relative;}
+  body:before{content:""; position:fixed; left:-10%; right:-10%; bottom:-6%; height:46vh; z-index:0;
+    pointer-events:none;
+    background-image:
+      linear-gradient(rgba(0,255,102,.09) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,255,102,.09) 1px, transparent 1px);
+    background-size:44px 44px;
+    transform:perspective(520px) rotateX(64deg); transform-origin:center 100%;
+    -webkit-mask-image:linear-gradient(to top, rgba(0,0,0,.95), transparent 82%);
+    mask-image:linear-gradient(to top, rgba(0,0,0,.95), transparent 82%);}
+  .wrap{position:relative; z-index:1;}
+  /* 2. 顶栏：玻璃板厚度 */
+  .topbar{box-shadow:inset 0 1px 0 rgba(255,255,255,.07), 0 5px 0 -2px rgba(0,255,102,.10),
+    0 14px 34px rgba(0,0,0,.55), var(--glow-lg);}
+  /* 3. 解锁卡片：立体浮起 + 大锁投影 */
+  .card{box-shadow:inset 0 1px 0 rgba(255,255,255,.09), 0 8px 0 -3px rgba(0,255,102,.10),
+    0 24px 60px rgba(0,0,0,.65), var(--glow-lg);}
+  .hero-lock .brand-lock{filter:drop-shadow(0 6px 10px rgba(0,255,102,.42));}
+  /* 4. 条目卡片：3D 厚度块 + hover 立体抬升 */
+  .item{box-shadow:0 2px 0 rgba(0,0,0,.35), inset 0 1px 0 rgba(0,255,102,.06), 0 6px 16px rgba(0,0,0,.35);
+    transform-style:preserve-3d;}
+  .item:hover{box-shadow:0 8px 0 -3px rgba(0,255,102,.16), 0 18px 30px rgba(0,0,0,.5), var(--glow-lg);}
+  .item:before{box-shadow:0 0 10px rgba(0,255,102,.5);}
+  /* 5. 按钮 / 图标按钮：3D 立体按压 */
+  .btn{box-shadow:0 3px 0 rgba(0,255,102,.22), 0 5px 12px rgba(0,0,0,.4);}
+  .btn:hover{box-shadow:0 5px 0 rgba(0,255,102,.3), 0 8px 16px rgba(0,0,0,.45), var(--glow);}
+  .btn:active{transform:translateY(2px); box-shadow:0 1px 0 rgba(0,255,102,.22), 0 2px 6px rgba(0,0,0,.4);}
+  .btn.primary{box-shadow:0 4px 0 rgba(0,200,120,.5), 0 8px 20px rgba(0,255,102,.3);}
+  .btn.primary:hover{box-shadow:0 6px 0 rgba(0,200,120,.55), 0 12px 26px rgba(0,255,102,.4);}
+  .btn.primary:active{box-shadow:0 2px 0 rgba(0,200,120,.5), 0 4px 10px rgba(0,255,102,.25);}
+  .iconbtn{box-shadow:0 2px 0 rgba(0,255,102,.18);}
+  .iconbtn:hover{box-shadow:0 4px 0 rgba(0,255,102,.28), var(--glow);}
+  .iconbtn:active{transform:translateY(1px); box-shadow:0 1px 0 rgba(0,255,102,.18);}
+  .iconbtn.r{box-shadow:0 2px 0 rgba(255,77,94,.2);}
+  .iconbtn.r:hover{box-shadow:0 4px 0 rgba(255,77,94,.3);}
+  /* 6. 分组标签：立体 pills */
+  .gtab{box-shadow:0 2px 0 rgba(0,0,0,.4);}
+  .gtab:hover{box-shadow:0 4px 0 rgba(0,255,102,.15);}
+  .gtab.active{box-shadow:0 4px 0 rgba(0,180,90,.55), 0 0 14px rgba(0,255,102,.35);}
+  .gtab.active:hover{box-shadow:0 5px 0 rgba(0,180,90,.6), 0 0 18px rgba(0,255,102,.4);}
+  /* 7. 搜索框凹陷感 */
+  .toolbar .search input{box-shadow:inset 0 2px 4px rgba(0,0,0,.4);}
+  .toolbar .search input:focus{box-shadow:inset 0 2px 4px rgba(0,0,0,.4), var(--glow);}
+  /* 8. 弹窗 3D 弹出 */
+  .modal{box-shadow:inset 0 1px 0 rgba(0,255,102,.08), 0 24px 70px rgba(0,0,0,.7), var(--glow-lg);}
+  @keyframes modalIn{from{opacity:0; transform:perspective(800px) translateY(-14px) rotateX(6deg) scale(.98);}to{opacity:1; transform:none;}}
+  /* 减少动态效果时关闭 3D 倾斜与地板 */
+  @media (prefers-reduced-motion:reduce){
+    .item:hover,.btn:hover,.iconbtn:hover,.gtab:hover{transform:none;}
+    body:before{display:none;}
+  }
+  /* ===== 分组立体图标块：3D 立方体 + 有厚度的按钮 ===== */
+  .groupbar{gap:10px; padding:3px 2px 7px;}
+  .gtab{
+    display:inline-flex; align-items:center; gap:6px; position:relative;
+    padding:7px 13px 8px; border-radius:10px; border:1px solid rgba(0,255,102,.18);
+    background:linear-gradient(180deg, rgba(19,46,31,.96), rgba(7,20,13,.97));
+    box-shadow:0 4px 0 rgba(0,0,0,.5), inset 0 1px 0 rgba(180,255,210,.1), 0 7px 14px rgba(0,0,0,.35);
+    transform:translateY(0);
+    transition:transform .16s ease, box-shadow .16s ease, border-color .16s ease, background .16s ease;
+  }
+  .gtab:hover{
+    color:var(--green); border-color:var(--green-dim);
+    background:linear-gradient(180deg, rgba(24,58,38,.98), rgba(9,26,17,.98));
+    box-shadow:0 6px 0 rgba(0,0,0,.45), inset 0 1px 0 rgba(180,255,210,.16), 0 12px 22px rgba(0,255,102,.12);
+  }
+  .gtab:active{transform:translateY(2px); box-shadow:0 1px 0 rgba(0,0,0,.55), inset 0 1px 0 rgba(180,255,210,.08);}
+  .gtab.active{
+    color:#04160c; border-color:#00ff88; font-weight:bold;
+    background:linear-gradient(180deg,#00e85c,#059a45);
+    box-shadow:0 4px 0 #046b31, inset 0 1px 0 rgba(255,255,255,.42), 0 0 18px rgba(0,255,102,.45);
+  }
+  .gtab.active:hover{box-shadow:0 6px 0 #046b31, inset 0 1px 0 rgba(255,255,255,.42), 0 0 26px rgba(0,255,102,.55);}
+  .gtab.active .cnt{opacity:.85; color:#04160c;}
+  .gtab .gicon{
+    display:inline-flex; width:17px; height:17px; flex:0 0 17px;
+    transform:rotateY(0deg) rotateX(0deg);
+    filter:drop-shadow(0 1px 2px rgba(0,0,0,.55));
+    transition:transform .3s ease, filter .3s ease;
+  }
+  .gtab .gicon svg{width:100%; height:100%; display:block;}
+  .gtab:hover .gicon{filter:drop-shadow(0 2px 6px rgba(0,255,102,.55)) brightness(1.15);}
+  .gtab.active .gicon{filter:drop-shadow(0 0 3px rgba(255,255,255,.6)) drop-shadow(0 1px 2px rgba(0,0,0,.4));}
+  @media (prefers-reduced-motion:reduce){
+    .gtab,.gtab:hover,.gtab.active:hover,.gtab:active{transform:none;}
+    .gtab:hover .gicon{transform:none;}
+  }
 </style>
 </head>
 <body>
@@ -149,14 +285,40 @@
 <!-- 解锁屏 -->
 <div id="unlock" class="wrap center">
   <div class="card">
-    <h2>▓▒░ PASSVAULT ░▒▓</h2>
+    <div class="hero-lock">
+      <div class="brand-lock" title="PASSVAULT 保险库">
+        <svg viewBox="0 0 32 32" aria-hidden="true">
+          <defs>
+            <linearGradient id="pvHeroFace" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stop-color="#00ff66"></stop>
+              <stop offset="55%" stop-color="#00d257"></stop>
+              <stop offset="100%" stop-color="#048a3e"></stop>
+            </linearGradient>
+            <linearGradient id="pvHeroShackle" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stop-color="#008f40"></stop>
+              <stop offset="28%" stop-color="#8affb9"></stop>
+              <stop offset="60%" stop-color="#00ff66"></stop>
+              <stop offset="100%" stop-color="#007231"></stop>
+            </linearGradient>
+          </defs>
+          <path d="M11 13 V9.5 a5 5 0 0 1 10 0 V13" fill="none" stroke="#045a29" stroke-width="6.5" stroke-linecap="round"></path>
+          <path d="M11 13 V9.5 a5 5 0 0 1 10 0 V13" fill="none" stroke="url(#pvHeroShackle)" stroke-width="4.5" stroke-linecap="round"></path>
+          <path d="M11.4 12 V9.5 a4.6 4.6 0 0 1 9.2 0 V12" fill="none" stroke="#d7ffe7" stroke-opacity=".6" stroke-width="1" stroke-linecap="round"></path>
+          <rect x="7" y="13" width="18" height="15" rx="5" fill="url(#pvHeroFace)"></rect>
+          <path d="M11 16 h10" fill="none" stroke="#ffffff" stroke-opacity=".32" stroke-width="1" stroke-linecap="round"></path>
+          <circle cx="16" cy="19" r="2.2" fill="#04150b"></circle>
+          <path d="M16 20.5 L14.6 24 h2.8 L16 20.5 Z" fill="#04150b"></path>
+        </svg>
+      </div>
+    </div>
+    <h2>PASSVAULT</h2>
     <div class="sub">// 本地加密密码保险库 · 离线 · 数据不出本机</div>
     <div id="unlockForm">
       <div class="field">
         <label>主密码 MASTER KEY</label>
         <input id="master" type="password" placeholder="输入主密码以解锁 / 创建保险库" autocomplete="off">
       </div>
-      <div class="btn danger" id="unlockBtn" style="width:100%;text-align:center;">🔓 解锁 / 创建</div>
+      <div class="btn primary" id="unlockBtn" style="width:100%;">🔓 解锁 / 创建保险库</div>
       <div class="warn" id="unlockWarn" style="display:none;"></div>
       <div class="opsbar" style="margin-top:14px; display:flex; gap:10px;">
         <button class="btn ghost" id="openFileBtn" style="flex:1;" title="选择从另一台电脑导出的 .vault 完整备份，输入其主密码即可恢复全部记录">📂 一键导入数据库</button>
@@ -174,15 +336,48 @@
 <!-- 主界面 -->
 <div id="app" class="wrap" style="display:none;">
   <div class="topbar">
-    <div>
-      <div class="logo">▓▒░ PASSVAULT</div>
-      <div class="meta" id="statLine">// 已解锁 · 0 条记录</div>
+    <div class="brand">
+      <div class="brand-lock" title="保险库已解锁">
+        <svg viewBox="0 0 32 32" aria-hidden="true">
+          <defs>
+            <linearGradient id="pvLockFace" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stop-color="#00ff66"></stop>
+              <stop offset="55%" stop-color="#00d257"></stop>
+              <stop offset="100%" stop-color="#048a3e"></stop>
+            </linearGradient>
+            <linearGradient id="pvShackle" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stop-color="#008f40"></stop>
+              <stop offset="28%" stop-color="#8affb9"></stop>
+              <stop offset="60%" stop-color="#00ff66"></stop>
+              <stop offset="100%" stop-color="#007231"></stop>
+            </linearGradient>
+          </defs>
+          <path d="M11 13 V9.5 a5 5 0 0 1 10 0 V13" fill="none"
+                stroke="#045a29" stroke-width="6.5" stroke-linecap="round"></path>
+          <path d="M11 13 V9.5 a5 5 0 0 1 10 0 V13" fill="none"
+                stroke="url(#pvShackle)" stroke-width="4.5" stroke-linecap="round"></path>
+          <path d="M11.4 12 V9.5 a4.6 4.6 0 0 1 9.2 0 V12" fill="none"
+                stroke="#d7ffe7" stroke-opacity=".6" stroke-width="1" stroke-linecap="round"></path>
+          <rect x="7" y="13" width="18" height="15" rx="5" fill="url(#pvLockFace)"></rect>
+          <path d="M11 16 h10" fill="none" stroke="#ffffff" stroke-opacity=".32"
+                stroke-width="1" stroke-linecap="round"></path>
+          <path d="M22.5 17 v8 a2.5 2.5 0 0 1 -2.5 2.5" fill="none"
+                stroke="#03441f" stroke-opacity=".55" stroke-width="1.4" stroke-linecap="round"></path>
+          <circle cx="16" cy="19" r="2.2" fill="#04150b"></circle>
+          <path d="M16 20.5 L14.6 24 h2.8 L16 20.5 Z" fill="#04150b"></path>
+        </svg>
+      </div>
+      <div>
+        <div class="logo">PASSVAULT</div>
+        <div class="meta" id="statLine">// 已解锁 · 0 条记录</div>
+      </div>
     </div>
     <div class="actions">
       <button class="btn" id="addBtn">＋ 新增</button>
       <button class="btn" id="saveBtn">💾 保存保险库</button>
       <button class="btn ghost" id="migrateBtn" title="导出 / 一键导入完整数据库，用于换电脑迁移">💽 数据库迁移</button>
       <button class="btn ghost" id="syncBtn" style="display:none">☁ 同步</button>
+      <button class="btn ghost" id="updateBtn" title="检查并安装软件更新">⬆ 检查更新</button>
       <button class="btn ghost" id="lockBtn">🔒 锁定</button>
     </div>
   </div>
@@ -216,6 +411,25 @@
         <button class="btn ghost" id="syncPull">从云端拉取</button>
         <button class="btn ghost" id="syncClose">关闭</button>
         <button class="btn" id="syncLogin">登录并启用同步</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 软件内更新弹窗 -->
+  <div id="updateModal" class="modal-bg">
+    <div class="modal">
+      <h3>⬆ 检查更新</h3>
+      <div class="warn" id="updInfo">正在检查更新…</div>
+      <div id="updNotes" style="display:none; background:#06100b; border:1px solid var(--line); border-radius:4px;
+        padding:12px; color:var(--cyan); font-size:13px; white-space:pre-wrap; max-height:220px; overflow:auto;"></div>
+      <div id="updProgressWrap" style="display:none;">
+        <div class="meter"><i id="updProgress"></i></div>
+        <div class="hint" id="updProgressText" style="margin-top:6px; font-size:12px;"></div>
+      </div>
+      <div class="opsbar">
+        <button class="btn ghost" id="updSite" style="display:none">访问官网下载完整版</button>
+        <button class="btn ghost" id="updClose">关闭</button>
+        <button class="btn" id="updAction" style="display:none">立即更新</button>
       </div>
     </div>
   </div>
@@ -551,10 +765,23 @@ function refreshGroups(){
   const changed = ordered.join("\u0001") !== groupOrder.join("\u0001");
   groupOrder = ordered;
   if(set.size && changed) saveGroupOrder();
+  // 分组 3D 立方体图标：按分组名稳定哈希分配配色，同组颜色永远一致
+  const CUBE_PAL=[
+    ["#8affb9","#00ff66","#008a3f"], // 绿
+    ["#a5f3fc","#22d3ee","#0e7490"], // 青
+    ["#93c5fd","#3b82f6","#1e40af"], // 蓝
+    ["#d8b4fe","#a855f7","#6b21a8"], // 紫
+    ["#ffd39a","#ff9f43","#b45309"], // 橙
+    ["#ff9ec4","#ff5ca8","#be185d"], // 粉
+    ["#ffe9a8","#ffd166","#b67a09"]  // 金
+  ];
+  const cubeSvg=p=>`<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M16 4 L27 10.5 L16 17 L5 10.5 Z" fill="${p[0]}"/><path d="M5 10.5 L16 17 L16 29 L5 22.5 Z" fill="${p[1]}"/><path d="M27 10.5 L16 17 L16 29 L27 22.5 Z" fill="${p[2]}"/></svg>`;
   const tab=(g,label,cnt,drag)=>{
     const tip = drag ? `筛选分组：${esc(label)}（${cnt} 条记录）· 按住拖动可调整顺序`
                      : "显示全部记录（固定在最左，不可拖动）";
-    return `<button type="button" class="gtab${activeGroup===g?" active":""}${drag?" can-drag":""}" data-group="${esc(g)}"${drag?' draggable="true"':''} title="${tip}">${drag?'<span class="handle">⠿</span>':''}${esc(label)}<span class="cnt">${cnt}</span></button>`;
+    let h=0; for(let i=0;i<g.length;i++) h=(h*31+g.charCodeAt(i))>>>0;
+    const pal = g ? CUBE_PAL[h%CUBE_PAL.length] : ["#ffffff","#cbd5e1","#5b6b7b"];
+    return `<button type="button" class="gtab${activeGroup===g?" active":""}${drag?" can-drag":""}" data-group="${esc(g)}"${drag?' draggable="true"':''} title="${tip}">${drag?'<span class="handle">⠿</span>':''}<span class="gicon">${cubeSvg(pal)}</span>${esc(label)}<span class="cnt">${cnt}</span></button>`;
   };
   $("groupBar").innerHTML = tab("","全部分组",entries.length,false)
     + (set.size ? ordered.map(g=>tab(g,g,counts[g],true)).join("") : "");
@@ -1049,6 +1276,65 @@ $("addBtn").addEventListener("click", ()=>openEditor(null));
 $("saveBtn").addEventListener("click", saveVault);
 $("lockBtn").addEventListener("click", ()=>{ if(dirty && !confirm("有未保存修改，锁定后将丢失，确定？")) return; masterKey=null; masterPass=""; entries=[]; activeGroup=""; dirty=false; $("app").style.display="none"; $("unlock").style.display="flex"; $("master").value=""; });
 $("migrateBtn").addEventListener("click", openMigrateModal);
+
+/* ============ 软件内增量更新 ============ */
+(function(){
+  const btn=$("updateBtn"), modal=$("updateModal"), info=$("updInfo"),
+        notes=$("updNotes"), action=$("updAction"), site=$("updSite"),
+        close=$("updClose"), pwWrap=$("updProgressWrap"), pw=$("updProgress"), pwText=$("updProgressText");
+  let latest=null, releasePage='https://github.com/a756654285/PassVault/releases', busy=false;
+  const hasApi=()=> window.__pv && window.__pv.updateCheck;
+
+  btn.addEventListener("click", async ()=>{
+    modal.classList.add("show");
+    info.style.color=""; info.textContent="正在检查更新…";
+    notes.style.display="none"; action.style.display="none"; site.style.display="none";
+    pwWrap.style.display="none"; pw.style.width="0%"; pwText.textContent="";
+    if(!hasApi()){ info.style.color="var(--red)"; info.textContent="当前环境不支持自动更新（请用桌面版软件打开）"; return; }
+    try{
+      const meta=await window.__pv.updateInfo();
+      if(meta && meta.releasePage) releasePage=meta.releasePage;
+      const r=await window.__pv.updateCheck();
+      if(!r.ok){ info.style.color="var(--red)"; info.textContent="检查失败："+(r.msg||"网络不可用，请稍后重试"); site.style.display="inline-block"; return; }
+      latest=r;
+      if(r.hasUpdate){
+        info.style.color="var(--green)";
+        info.textContent="发现新版本：v"+r.latest+"（当前 v"+r.local+"）"+(r.date?" · "+r.date:"");
+        if(r.notes){ notes.textContent=r.notes; notes.style.display="block"; }
+        action.style.display="inline-block"; action.textContent="立即更新";
+        pwText.textContent="将只下载变化的 "+r.count+" 个程序文件，你的密码库不会被修改。";
+      }else{
+        info.style.color="var(--green-dim)";
+        info.textContent="已是最新版本（v"+r.local+"），无需更新。";
+      }
+      site.style.display="inline-block";
+    }catch(e){ info.style.color="var(--red)"; info.textContent="检查失败："+String(e&&e.message||e); site.style.display="inline-block"; }
+  });
+
+  close.addEventListener("click", ()=>{ if(busy) return; modal.classList.remove("show"); });
+  site.addEventListener("click", ()=>{ if(window.__pv) window.__pv.openExternal(releasePage); });
+
+  action.addEventListener("click", async ()=>{
+    if(busy || !latest || !latest.hasUpdate) return;
+    busy=true; action.disabled=true; close.disabled=true;
+    info.style.color=""; info.textContent="正在下载更新文件…";
+    pwWrap.style.display="block"; pw.style.width="10%"; pwText.textContent="下载中，请勿关闭软件…";
+    try{
+      const d=await window.__pv.updateDownload();
+      if(!d.ok){ throw new Error(d.msg||"下载失败"); }
+      pw.style.width="80%"; pwText.textContent="校验通过，正在安装…";
+      const a=await window.__pv.updateApply();
+      if(!a.ok){ throw new Error(a.msg||"安装失败"); }
+      pw.style.width="100%";
+      info.style.color="var(--green)"; info.textContent="✅ 更新成功！请关闭并重新打开软件以生效。";
+      action.style.display="none";
+    }catch(e){
+      info.style.color="var(--red)"; info.textContent="更新失败："+String(e&&e.message||e)+"\n可从官网下载完整版手动覆盖安装。";
+      pwText.textContent="";
+    }finally{ busy=false; action.disabled=false; close.disabled=false; }
+  });
+})();
+
 $("migClose").addEventListener("click", ()=>$("migModal").classList.remove("show"));
 $("migExport").addEventListener("click", exportDatabase);
 $("migImport").addEventListener("click", ()=>$("backupFile").click());
