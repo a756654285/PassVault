@@ -1,11 +1,11 @@
 {
-  "version": "1.1.5",
-  "date": "2026-11-23",
-  "notes": "新增多源自动切换与Ed25519清单验签,提升更新可靠性与防篡改能力",
-  "baseUrl": "https://raw.githubusercontent.com/a756654285/PassVault/main/updates/1.1.5",
+  "version": "1.1.6",
+  "date": "2026-11-28",
+  "notes": "全新视觉界面、分组3D立体图标、修复按钮悬停闪烁",
+  "baseUrl": "https://raw.githubusercontent.com/a756654285/PassVault/main/updates/1.1.6",
   "baseUrls": [
-    "https://raw.githubusercontent.com/a756654285/PassVault/main/updates/1.1.5",
-    "https://cdn.jsdelivr.net/gh/a756654285/PassVault@main/updates/1.1.5"
+    "https://raw.githubusercontent.com/a756654285/PassVault/main/updates/1.1.6",
+    "https://cdn.jsdelivr.net/gh/a756654285/PassVault@main/updates/1.1.6"
   ],
   "releasePage": "https://github.com/a756654285/PassVault/releases",
   "files": [
@@ -26,12 +26,12 @@
     },
     {
       "path": "app/PassVault.html",
-      "sha256": "5e912c48486b3ed145a8909a8610c56a5042bf68865876b70a05003914013086",
-      "size": 84030
+      "sha256": "edbc0d64a6fb1390afd607d8c2c8a586486ef6e325b3909d6bec30fd5ea0e774",
+      "size": 99390
     },
     {
       "path": "package.json",
-      "sha256": "2d1b87e0c8dbc588b1827189a87fde7592cb8e0168d547bee9e2c25d44bf7a9c",
+      "sha256": "5fe7d0ca78603e24a332b32ac5d3c0ce72be57b50966c81a701281efac481412",
       "size": 700
     }
   ]
