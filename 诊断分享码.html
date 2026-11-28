@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PassVault 分享码诊断</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,"Microsoft YaHei",sans-serif;background:#0d1117;color:#e6edf3;padding:20px;max-width:900px;margin:auto}
+h1{font-size:20px}textarea{width:100%;height:120px;background:#161b22;color:#e6edf3;border:1px solid #30363d;border-radius:8px;padding:12px;font-family:monospace;font-size:13px}
+button{background:#238636;color:#fff;border:0;border-radius:8px;padding:12px 24px;font-size:16px;cursor:pointer;margin-top:12px}
+button:hover{background:#2ea043}
+pre{background:#161b22;border:1px solid #30363d;border-radius:8px;padding:14px;white-space:pre-wrap;word-break:break-all;font-size:13px;line-height:1.6;margin-top:14px}
+.ok{color:#3fb950}.bad{color:#f85149}.warn{color:#d29922}.dim{color:#8b949e}
+</style>
+</head>
+<body>
+<h1>🔍 PassVault 分享码诊断</h1>
+<p class="dim">把你在微信里收到的那条分享码或链接，整条粘贴到下面，点「诊断」。本页只在你的浏览器本地分析，不联网、不上传。</p>
+<textarea id="inp" placeholder="粘贴分享码或链接…"></textarea><br>
+<button id="btn">开始诊断</button>
+<pre id="out">等待输入…</pre>
+
+<script>
+"use strict";
+var PREFIX = "PV-SHARE1:";
+var lines = [];
+function log(cls, s){ lines.push('<span class="'+(cls||'')+'">'+s.replace(/</g,'&lt;')+'</span>'); }
+function unb64(s){
+  var t = String(s||"").replace(/\s+/g,"");
+  if(/[-_]/.test(t)){ t=t.replace(/-/g,"+").replace(/_/g,"/"); while(t.length%4)t+="="; }
+  return Uint8Array.from(atob(t), function(c){return c.charCodeAt(0);});
+}
+function esc(s){ return JSON.stringify(s); }
+
+document.getElementById("btn").addEventListener("click", async function(){
+  lines = [];
+  var raw = document.getElementById("inp").value || "";
+  log("", "输入总长度: " + raw.length + " 字符");
+  if(!raw){ log("bad","输入为空"); render(); return; }
+
+  // 逐步归一化（与小程序当前逻辑一致）
+  var s = raw.replace(/ /g,"\u0001").replace(/[\n\r\t\u3000]/g,"");
+  log("dim","① 去折行后长度: "+s.length+"（删除了 "+(raw.length-s.replace(/\u0001/g,' ').length)+" 个折行字符）");
+  var hash = s.indexOf("#");
+  var isLink = raw.trim().toLowerCase().indexOf("http")===0 || hash>=0;
+  log("", "② 是否链接: "+(isLink?"是":"否"));
+  if(hash>=0){
+    s = s.slice(hash+1);
+    try{ s = decodeURIComponent(s); log("ok","③ URL 解码成功"); }
+    catch(e){ log("warn","③ URL 解码失败(按原样继续): "+e.message); }
+    s = s.replace(/[\n\r\t\u3000]/g,"").replace(/ /g,"\u0001");
+  }
+  s = s.replace(/PV[\u0001]*-[\u0001]*SHARE[\u0001]*1[\u0001]*:/, PREFIX);
+  var p = s.indexOf(PREFIX);
+  if(p<0){
+    log("bad","④ 未找到前缀 "+PREFIX+" —— 分享码不完整或不是本软件的码");
+    log("dim","   输入开头 60 字符: "+esc(raw.slice(0,60)));
+    render(); return;
+  }
+  if(p>0) s = s.slice(p);
+  var body = s.slice(PREFIX.length);
+  log("ok","④ 找到前缀，分享码主体长度: "+body.length);
+
+  // 统计可疑字符
+  var spaceN=(body.match(/\u0001/g)||[]).length;
+  var plusN=(body.match(/\+/g)||[]).length;
+  var pct20=(body.match(/%20/gi)||[]).length;
+  var eqN=(body.match(/=/g)||[]).length;
+  log("", "⑤ 字符统计: 空格(疑似被改写的+)=["+spaceN+"]  +=["+plusN+"]  %20=["+pct20+"]  ==["+eqN+"]  -_ 含否="+ /[-_]/.test(body));
+
+  // 逐一尝试变体解析 JSON
+  var variants=[
+    ["原样",body],
+    ["空格→+",body.replace(/\u0001/g,"+")],
+    ["空格→-",body.replace(/\u0001/g,"-")],
+    ["空格删除",body.replace(/\u0001/g,"")],
+    ["%20→+",body.replace(/%20/gi,"+")],
+    ["%2B→+",body.replace(/%2B/gi,"+")]
+  ];
+  var d=null, used="";
+  for(var i=0;i<variants.length;i++){
+    try{
+      var obj=JSON.parse(new TextDecoder().decode(unb64(variants[i][1])));
+      if(obj&&obj.v===2&&obj.salt&&obj.iv&&obj.ct){d=obj;used=variants[i][0];break;}
+    }catch(e){}
+  }
+  if(!d){
+    log("bad","⑥ JSON 解析全部失败 —— 密文主体已损坏（很可能复制时被截断）");
+    log("dim","   主体开头: "+esc(body.slice(0,50)));
+    log("dim","   主体结尾: "+esc(body.slice(-50)));
+    render(); return;
+  }
+  log("ok","⑥ JSON 解析成功（采用: "+used+"）| iter="+d.iter+" | exp="+d.exp+" | title="+esc(d.title));
+  if(d.exp>0 && Date.now()>d.exp){ log("bad","⑦ 已过期"); render(); return; }
+  log("ok","⑦ 未过期");
+  log("warn","⑧ 结构完整，可以继续输入密码解密。若小程序仍报错，说明小程序未加载到最新代码——请在微信开发者工具点「编译」后重试。");
+  render();
+});
+function render(){ document.getElementById("out").innerHTML=lines.join("\n"); }
+</script>
+</body>
+</html>
