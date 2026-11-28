@@ -517,7 +517,7 @@
         </div>
       </div>
       <div class="field">
-        <label>⏳ 有效期（到期后对方将无法查看该文件）</label>
+        <label>⏳ 有效期（从对方首次打开起算，到期后无法查看）</label>
         <select id="shareExpire">
           <option value="1">1 天</option>
           <option value="3">3 天</option>
@@ -1554,11 +1554,13 @@ async function genEncryptedShare(){
     const key = await deriveKey(pw, salt, 250000);
     // 到期时间（毫秒时间戳；0=永久）。选择以“天”为单位，生成时固化为绝对时间。
     const days = parseInt($("shareExpire").value,10);
-    const expAt = (days>0) ? (Date.now() + days*24*60*60*1000) : 0;
-    // 把到期时间作为 AES-GCM 的附加认证数据(AAD)：对方改文件里的 exp 字段会导致解密失败，无法靠改时间续期。
-    const aad = enc.encode(String(expAt));
+    // 新版：dur=有效期时长(ms)，从对方首次打开时开始计时；exp 保留为生成时刻的绝对时间，仅供兼容旧查看器。
+    const dur = (days>0) ? (days*24*60*60*1000) : 0;
+    const expAt = dur ? (Date.now() + dur) : 0;
+    // exp 与 dur 一起绑定为 AES-GCM 的 AAD：改文件里的到期字段会导致解密失败，无法靠改字段续期。
+    const aad = enc.encode(String(expAt)+"|"+String(dur));
     const ct = await crypto.subtle.encrypt({name:"AES-GCM", iv, additionalData:aad}, key, enc.encode(plain));
-    const payload = { v:2, kdf:"PBKDF2-SHA256", iter:250000, salt:b64(salt), iv:b64(iv), ct:b64(ct), exp:expAt };
+    const payload = { v:2, kdf:"PBKDF2-SHA256", iter:250000, salt:b64(salt), iv:b64(iv), ct:b64(ct), exp:expAt, dur:dur };
     const html = makeViewerHtml(payload);
     const nm = "PassVault_加密分享_"+((sharingEntry&&(sharingEntry.title||sharingEntry.username))||"条目")+".html";
     download(new Blob([html],{type:"text/html;charset=utf-8"}), nm);
@@ -1618,16 +1620,37 @@ const DATA=${data};
 const enc=new TextEncoder(),dec=new TextDecoder();
 const \$=id=>document.getElementById(id);
 function unb64(s){const b=atob(s),a=new Uint8Array(b.length);for(let i=0;i<b.length;i++)a[i]=b.charCodeAt(i);return a;}
-const EXP=Number(DATA.exp)||0;   // 到期时间戳(ms)，0=永久
+const EXP=Number(DATA.exp)||0;   // 生成时刻推算的绝对到期时间，仅供旧查看器兼容
+const DUR=Number(DATA.dur)||0;   // 新版：有效期时长(ms)，从对方首次打开时起算；0=永久
 function fmt(ms){const d=new Date(ms),p=n=>String(n).padStart(2,"0");return d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate())+" "+p(d.getHours())+":"+p(d.getMinutes());}
-function isExpired(){ return EXP>0 && Date.now()>EXP; }
-// 到期时间作为 AAD 参与认证：改文件里的 exp 想续期会导致解密失败
-function expiryAAD(){ return enc.encode(String(EXP)); }
-if(EXP>0){ \$("meta").textContent="有效期至 "+fmt(EXP)+"（本地时间）"; }
+// 首次打开时记录时间锚点；此后只允许时间前进，改系统时间回拨不会重置倒计时。
+var ANCHOR=null;
+function loadAnchor(){
+  if(DUR<=0) return {first:0,now:Date.now(),dur:0,deadline:0};
+  const key="pvanchor_"+String(DATA.ct||"").slice(0,40).replace(/[^A-Za-z0-9]/g,"");
+  let st=null; try{ st=JSON.parse(localStorage.getItem(key)||"null"); }catch(e){}
+  const real=Date.now(), last=Number(st&&st.last)||0;
+  let first=Number(st&&st.first)||0;
+  const now=Math.max(real,last);
+  if(!first) first=now;
+  if(!st||st.first!==first||st.last!==now){ try{ localStorage.setItem(key,JSON.stringify({first:first,last:now})); }catch(e){} }
+  return {first:first,now:now,dur:DUR,deadline:first+DUR};
+}
+function isExpired(){ ANCHOR=loadAnchor(); return DUR>0 ? (ANCHOR.now>ANCHOR.deadline) : (EXP>0&&Date.now()>EXP); }
+// 到期字段作为 AAD 参与认证：改文件里的 exp/dur 想续期会导致解密失败
+function expiryAAD(){ return enc.encode(String(EXP)+(DATA.dur!==undefined?"|"+String(DUR):"")); }
+function expiryText(){
+  if(DUR>0) return "有效期：自首次打开起 "+Math.round(DUR/86400000)+" 天（本机记录，改系统时间不重置）";
+  if(EXP>0) return "有效期至 "+fmt(EXP)+"（本地时间）";
+  return "永久有效";
+}
+if(DUR>0||EXP>0){ \$("meta").textContent=expiryText(); }
 function showExpired(){
   \$("lockView").classList.add("hidden");
   \$("expiredView").classList.remove("hidden");
-  \$("expiredMsg").textContent="该分享于 "+fmt(EXP)+" 到期（本地时间），已超过有效期，无法查看内容。";
+  \$("expiredMsg").textContent = DUR>0
+    ? ("本分享自首次打开 "+fmt(ANCHOR.first)+" 起 "+Math.round(DUR/86400000)+" 天，现已到期。")
+    : ("该分享于 "+fmt(EXP)+" 到期（本地时间），已超过有效期，无法查看内容。");
 }
 if(isExpired()){ showExpired(); }
 async function tryUnlock(){
