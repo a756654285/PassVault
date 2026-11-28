@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="referrer" content="no-referrer">
+<title>PassVault 加密分享</title>
+<style>
+:root{--bg:#0d1117;--panel:#161b22;--line:#30363d;--fg:#d7d9de;--muted:#8b949e;--green:#3fb950;--green-d:#238636;}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.7 -apple-system,"Segoe UI","Microsoft YaHei",sans-serif;}
+.wrap{max-width:720px;margin:0 auto;padding:28px 16px 48px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:24px 20px;box-shadow:0 8px 32px rgba(0,0,0,.4)}
+h1{margin:0 0 4px;font-size:22px;color:var(--green)}
+.sub{color:var(--muted);font-size:13px;margin-bottom:20px;line-height:1.6}
+.lock{text-align:center;padding:14px 0}
+.lock .ic{font-size:48px;margin-bottom:6px}
+input{width:100%;background:#0d1117;border:1px solid var(--line);border-radius:9px;color:var(--fg);font:inherit;font-size:16px;padding:12px 13px;margin:8px 0}
+input:focus{outline:none;border-color:var(--green)}
+button{background:var(--green-d);color:#fff;border:0;border-radius:9px;padding:12px 22px;font:inherit;font-weight:600;cursor:pointer;width:100%;margin-top:6px}
+button:hover{background:var(--green)}button.ghost{background:transparent;border:1px solid var(--line);color:var(--fg)}
+button:disabled{opacity:.55;cursor:default}
+.err{color:#f85149;font-size:14px;margin-top:10px;min-height:20px}
+.hidden{display:none!important}
+pre{background:#0d1117;border:1px solid var(--line);border-radius:9px;padding:16px;white-space:pre-wrap;word-break:break-all;font:14px/1.8 Consolas,"Microsoft YaHei",monospace;color:#e6edf3;margin:0}
+.ops{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}.ops button{flex:1;min-width:120px;margin:0}
+.foot{text-align:center;color:var(--muted);font-size:12px;margin-top:20px;line-height:1.7}
+.expired{text-align:center;padding:22px 8px}.expired .ic{font-size:52px;margin-bottom:8px}
+.expired h2{color:#f85149;margin:0 0 8px;font-size:20px}
+.expired p{color:var(--muted);font-size:14px;margin:6px 0}
+.meta{color:var(--muted);font-size:12px;margin-top:12px;text-align:left}
+.badge{display:inline-block;background:rgba(63,185,80,.12);border:1px solid rgba(63,185,80,.4);color:var(--green);font-size:12px;border-radius:20px;padding:2px 12px;margin-bottom:14px}
+</style></head>
+<body><div class="wrap"><div class="card">
+<div class="badge">🔐 PassVault 加密分享</div>
+<h1 id="heading">安全查看分享内容</h1>
+<div class="sub" id="subLine">本内容已加密。密文随链接传递，<b>不会上传到服务器</b>；需输入分享者单独告知的密码，在你的设备上本地解密。</div>
+
+<div id="expiredView" class="expired hidden"><div class="ic">⌛</div>
+<h2>此分享已过期</h2>
+<p id="expiredMsg">该分享已超过设定的有效期，无法查看内容。</p>
+<p>如需查看，请联系分享者重新生成。</p></div>
+
+<div id="lockView" class="lock"><div class="ic">🔒</div>
+<input id="pw" type="password" placeholder="请输入分享密码" autocomplete="off" autocomplete="new-password">
+<button id="unlockBtn">🔓 解锁查看</button>
+<div class="err" id="err"></div>
+<div class="meta" id="meta"></div></div>
+
+<div id="contentView" class="hidden">
+<pre id="content"></pre>
+<div class="ops">
+<button class="ghost" id="copyBtn">📋 复制内容</button>
+<button class="ghost" id="wordBtn">⬇ 另存 Word</button>
+</div>
+<div class="err" id="err2"></div></div>
+
+<div class="foot">内容仅在本机解密，服务器与分享链接均不含明文密码<br>请勿把链接和分享密码放在同一条消息里发送</div>
+</div></div>
+
+<script>
+(function(){
+"use strict";
+var enc=new TextEncoder(), dec=new TextDecoder();
+function $(id){return document.getElementById(id);}
+// 解码：自动兼容新版 URL 安全 base64(- _) 与旧版标准 base64(+ /)
+function unb64(s){
+  var t=String(s||"").replace(/\s+/g,"");
+  if(/[-_]/.test(t)){ t=t.replace(/-/g,"+").replace(/_/g,"/"); while(t.length%4)t+="="; }
+  var b=atob(t),a=new Uint8Array(b.length);
+  for(var i=0;i<b.length;i++)a[i]=b.charCodeAt(i);
+  return a;
+}
+var PREFIX="PV-SHARE1:";
+
+// 从 URL 的 # 片段读取密文：# 后面的内容不会随 HTTP 请求发给服务器
+function readPayload(){
+  var raw=location.hash||"";
+  raw=raw.replace(/^#/,"");
+  try{ raw=decodeURIComponent(raw); }catch(e){}
+  var s=String(raw||"").replace(/[\n\r\t\u3000]/g,"");
+  var p=s.indexOf(PREFIX);
+  if(p<0) throw new Error("链接中没有有效的分享码（应以 PV-SHARE1: 开头）");
+  var body=s.slice(p+PREFIX.length);
+  // 半角空格可能是旧码的 + 被微信改写；分别按「还原+」「还原-」「直接删」三种尝试
+  var variants=[body, body.replace(/ /g,"+"), body.replace(/ /g,"-"), body.replace(/ /g,"")];
+  var d=null;
+  for(var i=0;i<variants.length;i++){
+    try{
+      var obj=JSON.parse(dec.decode(unb64(variants[i])));
+      if(obj && obj.v===2 && obj.salt && obj.iv && obj.ct){ d=obj; break; }
+    }catch(e){}
+  }
+  if(!d) throw new Error("分享链接格式错误或已损坏，请确认复制了完整链接（含 # 后全部内容）");
+  return d;
+}
+
+var DATA, EXP, DUR;
+try{
+  DATA=readPayload();
+  EXP=Number(DATA.exp)||0;
+  DUR=Number(DATA.dur)||0;
+}catch(e){
+  $("lockView").classList.add("hidden");
+  $("heading").textContent="无法打开分享链接";
+  $("subLine").innerHTML='<span style="color:#f85149">'+ (e.message||"链接无效") +'</span><br>请确认复制了完整的分享链接（含 # 后面的全部内容）。';
+  return;
+}
+
+function fmt(ms){var d=new Date(ms),p=function(n){return String(n).padStart(2,"0");};return d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate())+" "+p(d.getHours())+":"+p(d.getMinutes());}
+// 首次打开记录时间锚点；此后只允许时间前进，改系统时间回拨不会重置倒计时。
+var ANCHOR=null;
+function loadAnchor(){
+  if(DUR<=0) return {first:0,now:Date.now(),dur:0,deadline:0};
+  var key="pvanchor_"+String(DATA.ct||"").slice(0,40).replace(/[^A-Za-z0-9]/g,"");
+  var st=null; try{ st=JSON.parse(localStorage.getItem(key)||"null"); }catch(e){}
+  var real=Date.now(), last=Number(st&&st.last)||0;
+  var first=Number(st&&st.first)||0;
+  var now=Math.max(real,last);
+  if(!first) first=now;
+  if(!st||st.first!==first||st.last!==now){ try{ localStorage.setItem(key,JSON.stringify({first:first,last:now})); }catch(e){} }
+  return {first:first,now:now,dur:DUR,deadline:first+DUR};
+}
+function isExpired(){ ANCHOR=loadAnchor(); return DUR>0 ? (ANCHOR.now>ANCHOR.deadline) : (EXP>0&&Date.now()>EXP); }
+function expiryAAD(){return enc.encode(String(EXP)+(DATA.dur!==undefined?"|"+String(DUR):""));} // 与生成端一致：到期字段作 AAD，改字段续期会导致解密失败
+function expiryText(){
+  if(DUR>0) return "有效期：自首次打开起 "+Math.round(DUR/86400000)+" 天（本机记录，改系统时间不重置）";
+  if(EXP>0) return "有效期至 "+fmt(EXP)+"（本地时间）";
+  return "永久有效";
+}
+function showExpired(){
+  $("lockView").classList.add("hidden");
+  $("expiredView").classList.remove("hidden");
+  $("expiredMsg").textContent = DUR>0
+    ? ("本分享自首次打开 "+fmt(ANCHOR.first)+" 起 "+Math.round(DUR/86400000)+" 天，现已到期。")
+    : ("该分享已于 "+fmt(EXP)+" 到期（本地时间），无法查看内容。");
+}
+if(DUR>0||EXP>0){ $("meta").textContent=expiryText(); }
+if(isExpired()){ showExpired(); return; }
+
+async function tryUnlock(){
+  if(isExpired()){ showExpired(); return; }
+  var pw=$("pw").value, err=$("err");
+  err.textContent="";
+  if(!pw){ err.textContent="请输入分享密码"; return; }
+  $("unlockBtn").disabled=true; $("unlockBtn").textContent="正在解密…";
+  try{
+    var iters=Number(DATA.iter)||20000;
+    if(iters<1000||iters>1000000) iters=20000;
+    var base=await crypto.subtle.importKey("raw",enc.encode(pw),"PBKDF2",false,["deriveKey"]);
+    var key=await crypto.subtle.deriveKey(
+      {name:"PBKDF2",salt:unb64(DATA.salt),iterations:iters,hash:"SHA-256"},
+      base,{name:"AES-GCM",length:256},false,["decrypt"]);
+    var pt=await crypto.subtle.decrypt(
+      {name:"AES-GCM",iv:unb64(DATA.iv),additionalData:expiryAAD()},
+      key,unb64(DATA.ct));
+    $("content").textContent=dec.decode(pt);
+    $("lockView").classList.add("hidden");
+    $("contentView").classList.remove("hidden");
+  }catch(e){
+    err.textContent="密码错误、链接已损坏或有效期字段被篡改，请核对后重试";
+  }finally{
+    $("unlockBtn").disabled=false; $("unlockBtn").textContent="🔓 解锁查看";
+  }
+}
+$("unlockBtn").addEventListener("click",tryUnlock);
+$("pw").addEventListener("keydown",function(e){if(e.key==="Enter")tryUnlock();});
+$("pw").focus();
+
+$("copyBtn").addEventListener("click",async function(){
+  var t=$("content").textContent, btn=$("copyBtn");
+  try{
+    if(navigator.clipboard && navigator.clipboard.writeText){ await navigator.clipboard.writeText(t); }
+    else{
+      var ta=document.createElement("textarea"); ta.value=t; ta.style.position="fixed"; ta.style.opacity="0";
+      document.body.appendChild(ta); ta.select(); document.execCommand("copy"); ta.remove();
+    }
+    btn.textContent="✅ 已复制";
+  }catch(e){ btn.textContent="请长按内容手动复制"; }
+  var self=this; setTimeout(function(){ self.textContent="📋 复制内容"; },2500);
+});
+$("wordBtn").addEventListener("click",function(){
+  var t=$("content").textContent;
+  var esc=t.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+  var html='<html><head><meta charset="utf-8"></head><body><pre style="font-family:SimSun;font-size:12pt;white-space:pre-wrap">'+esc+'</pre></body></html>';
+  var u=URL.createObjectURL(new Blob(["\ufeff"+html],{type:"application/msword"}));
+  var a=document.createElement("a"); a.href=u; a.download="PassVault_分享.doc";
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(function(){URL.revokeObjectURL(u);},1000);
+});
+})();
+</script>
+</body></html>
